@@ -14,6 +14,6 @@
  * Si dejas los dos campos vacíos, la app guarda en el navegador, como antes.
  */
 window.MP_CONFIG = {
-  supabaseUrl: '',
-  supabaseKey: '',
+  supabaseUrl: 'https://mxvpayfdhwcolyuxxbfk.supabase.co',
+  supabaseKey: 'sb_publishable_TONrR-IXt0at9f9NPp0v7Q_O40emKCJ',
 };

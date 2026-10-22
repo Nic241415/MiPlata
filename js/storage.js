@@ -36,7 +36,8 @@ const Store = {
       return;
     }
     this.mode = 'cloud';
-    this.sb = window.supabase.createClient(cfg.supabaseUrl, cfg.supabaseKey);
+    const url = cfg.supabaseUrl.trim().replace(/\/rest\/v1\/?$/, '').replace(/\/$/, ''); // por si se copió con /rest/v1/
+    this.sb = window.supabase.createClient(url, cfg.supabaseKey.trim());
     const { data } = await this.sb.auth.getSession();
     this.user = data.session?.user || null;
   },
