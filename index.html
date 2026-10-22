@@ -8,7 +8,9 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Instrument+Sans:wght@400;500;600&display=swap">
-  <link rel="stylesheet" href="css/styles.css">
+  <!-- Siempre la versión más reciente: el "?t=" cambia en cada visita, así el navegador
+       no usa una copia vieja del diseño o del código después de publicar una actualización. -->
+  <script>window.MP_T = Date.now(); document.write('<link rel="stylesheet" href="css/styles.css?t=' + MP_T + '">');</script>
   <!-- Librería de gráficos -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 </head>
@@ -35,8 +37,10 @@
 
 <!-- 1) Supabase (nube)  2) Tus datos de Supabase  3) Dónde se guardan los datos  4) La app -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.4/dist/umd/supabase.js"></script>
-<script src="js/config.js"></script>
-<script src="js/storage.js"></script>
-<script src="js/app.js"></script>
+<script>
+  ['js/config.js', 'js/storage.js', 'js/app.js'].forEach(function (src) {
+    document.write('<script src="' + src + '?t=' + MP_T + '"><\/script>');
+  });
+</script>
 </body>
 </html>
