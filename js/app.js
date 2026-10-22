@@ -36,14 +36,14 @@ function fmt(v, cur, opts = {}) {
   const [maxD, minD] = digitsFor(cur, v);
   const s = num(v, maxD, minD);
   const sign = v < 0 && Math.abs(v) >= 0.5 * Math.pow(10, -maxD) ? '−' : (opts.sign && v > 0 ? '+' : '');
-  return FIAT[cur] ? `${sign}${FIAT[cur].sym} ${s}` : `${sign}${s} ${cur}`;
+  return FIAT[cur] ? `${sign}${FIAT[cur].sym} ${s}` : `${sign}${s} ${cur}`; // espacio que no se parte: el símbolo no queda solo en otra línea
 }
 function fmtShort(v, cur) {
   const a = Math.abs(v); const sym = FIAT[cur] ? FIAT[cur].sym + ' ' : '';
   const sign = v < 0 ? '−' : '';
   if (a >= 1e9) return `${sign}${sym}${num(a / 1e9, 1)} mil M`;
   if (a >= 1e6) return `${sign}${sym}${num(a / 1e6, 1)} M`;
-  if (a >= 1e3) return `${sign}${sym}${num(a / 1e3, 1)} mil`;
+  if (a >= 1e3) return `${sign}${sym}${num(a, a >= 1e5 ? 0 : 1)}`;
   return `${sign}${sym}${num(a, 2)}`;
 }
 const pct = v => (v > 0 ? '+' : v < 0 ? '−' : '') + num(Math.abs(v), 2) + ' %';
@@ -363,7 +363,7 @@ function vInicio() {
 }
 function accRow(a, bal) {
   const base = baseCur();
-  return `<div class="row click" data-act="edit-acc" data-id="${a.id}"><span class="avatar" style="background:${esc(a.color || '#7A8590')}">${ico(a.icon || a.type)}</span>
+  return `<div class="row click" data-act="edit-acc" data-id="${a.id}"><span class="avatar" style="color:${esc(a.color || '#7A8590')}">${ico(a.icon || a.type)}</span>
     <div class="main"><div class="t">${esc(a.name)}${a.demo ? '<span class="pill-demo">ejemplo</span>' : ''}</div><div class="s">${ACC_TYPES[a.type] || ''}${a.sub ? ' · ' + esc(a.sub) : ''}${a.archived ? ' · archivada' : ''}</div></div>
     <div class="r"><div class="amt ${bal < 0 ? 'neg' : ''}">${fmt(bal, a.currency)}</div>${a.currency !== base ? `<div class="s">≈ ${fmt(conv(bal, a.currency, base), base)}</div>` : ''}</div></div>`;
 }
@@ -387,7 +387,7 @@ function txRow(t) {
   if (t.type === 'transfer') { title = t.note || 'Transferencia'; sub = `${esc(a?.name || '¿?')} → ${esc(to?.name || '¿?')}`; amt = fmt(t.amount, cur) + (to && to.currency !== cur ? ` → ${fmt(t.toAmount, to.currency)}` : ''); cls = ''; icon = 'tr'; }
   else { title = t.note || catName(t.categoryId); sub = `${esc(catName(t.categoryId))} · ${esc(a?.name || 'Cuenta borrada')}`; amt = fmt(t.type === 'income' ? t.amount : -t.amount, cur, { sign: true }); cls = t.type === 'income' ? 'pos' : 'neg'; icon = t.type === 'income' ? 'in' : 'out'; }
   const bg = t.type === 'income' ? 'var(--pos)' : t.type === 'expense' ? 'var(--neg)' : 'var(--c6)';
-  return `<div class="row click" data-act="edit-tx" data-id="${t.id}"><span class="avatar" style="background:${bg}">${ico(icon)}</span><div class="main"><div class="t">${esc(title)}${t.demo ? '<span class="pill-demo">ejemplo</span>' : ''}</div><div class="s">${sub}</div></div><div class="r"><div class="amt ${cls}">${amt}</div></div></div>`;
+  return `<div class="row click" data-act="edit-tx" data-id="${t.id}"><span class="avatar" style="color:${bg}">${ico(icon)}</span><div class="main"><div class="t">${esc(title)}${t.demo ? '<span class="pill-demo">ejemplo</span>' : ''}</div><div class="s">${sub}</div></div><div class="r"><div class="amt ${cls}">${amt}</div></div></div>`;
 }
 function catOptions(sel, withAll) {
   const cats = Object.values(S.categories); const g = k => cats.filter(c => c.kind === k).sort((a, b) => a.name.localeCompare(b.name)).map(c => `<option value="${c.id}" ${sel === c.id ? 'selected' : ''}>${esc(c.name)}</option>`).join('');
@@ -446,7 +446,7 @@ function vMercado() {
     const s = seriesFor(key); const days = UI.range[key]; const from = addDays(today(), -days); const ss = s.filter(p => p[0] >= from);
     const first = ss[0]?.[1], ch = first ? (val - first) / first * 100 : 0;
     return `<section class="card"><div class="card-head"><div><div class="label">${label}</div><div class="stat"><span class="v">${fmt(val, q)}</span></div></div><span class="chip ${ch >= 0 ? 'pos' : 'neg'}">${pct(ch)}</span></div>
-      <div class="seg" role="group" aria-label="Periodo">${[[7, '7 días'], [30, '30 días'], [365, '1 año']].map(([d, l]) => `<button data-act="range" data-key="${key}" data-days="${d}" aria-pressed="${days === d}">${l}</button>`).join('')}</div>
+      <div class="seg" role="group" aria-label="Periodo">${[[1, '1 día'], [7, '7 días'], [30, '30 días'], [365, '1 año']].map(([d, l]) => `<button data-act="range" data-key="${key}" data-days="${d}" aria-pressed="${days === d}">${l}</button>`).join('')}</div>
       <div class="chart-box short" style="margin-top:10px"><canvas id="ch-${key}" aria-label="Gráfico ${label}"></canvas></div></section>`;
   };
   const alerts = Object.values(S.alerts);
@@ -457,7 +457,7 @@ function vMercado() {
     <div class="tbl-wrap"><table><thead><tr><th>Moneda</th><th class="r">Precio USD</th><th class="r">Precio COP</th><th class="r">24 horas</th></tr></thead><tbody>
     ${Object.entries(coins).map(([k, n]) => { const u = coinUsd(k), c = coinCh24(k); return `<tr><td><b>${esc(k)}</b> <span class="muted small">${esc(n)}</span></td><td class="r">${u == null ? '—' : fmt(u, 'USD')}</td><td class="r">${u == null ? '—' : fmt(u * r.usdcop, 'COP')}</td><td class="r">${c == null ? '<span class="muted">—</span>' : `<span class="${c >= 0 ? 'pos' : 'neg'}">${pct(c)}</span>`}</td></tr>`; }).join('')}
     </tbody></table></div>
-    ${S.market.crypto?.coins?.BTC?.hist ? `<div class="card-head" style="margin-top:16px"><h3>Bitcoin en USD</h3><div class="seg">${[[7, '7 días'], [30, '30 días'], [365, '1 año']].map(([d, l]) => `<button data-act="range" data-key="BTC" data-days="${d}" aria-pressed="${UI.range.BTC === d}">${l}</button>`).join('')}</div></div><div class="chart-box short"><canvas id="ch-BTC" aria-label="Gráfico de Bitcoin"></canvas></div>` : ''}
+    ${S.market.crypto?.coins?.BTC?.hist ? `<div class="card-head" style="margin-top:16px"><h3>Bitcoin en USD</h3><div class="seg">${[[1, '1 día'], [7, '7 días'], [30, '30 días'], [365, '1 año']].map(([d, l]) => `<button data-act="range" data-key="BTC" data-days="${d}" aria-pressed="${UI.range.BTC === d}">${l}</button>`).join('')}</div></div><div class="chart-box short"><canvas id="ch-BTC" aria-label="Gráfico de Bitcoin"></canvas></div>` : ''}
   </section>
   <section class="card"><div class="card-head"><h2>Alertas de precio</h2><button class="btn sm primary" data-act="new-alert">Nueva alerta</button></div>
     ${alerts.length ? `<div class="rows">${alerts.map(a => { const now = pairValue(a.pair); return `<div class="row"><div class="main"><div class="t">Avisarme si ${esc(a.pair)} ${a.op === '>' ? 'supera' : 'baja de'} ${esc(fmtPair(a.pair, a.value))}${a.demo ? '<span class="pill-demo">ejemplo</span>' : ''}</div><div class="s">Ahora: ${now == null ? '—' : esc(fmtPair(a.pair, now))}</div></div>
@@ -490,7 +490,7 @@ function vAhorro() {
 }
 function vPagos() {
   const list = Object.values(S.recurring).sort((a, b) => a.next < b.next ? -1 : 1); const lim = addDays(today(), 7);
-  const row = r => { const n = daysBetween(today(), r.next); return `<div class="row"><span class="avatar" style="background:${n < 0 ? 'var(--neg)' : r.next <= lim ? 'var(--warn)' : 'var(--c6)'}">${ico('pagos')}</span><div class="main"><div class="t">${esc(r.name)}${r.demo ? '<span class="pill-demo">ejemplo</span>' : ''}</div><div class="s">${FREQ[r.freq]} · ${esc(S.accounts[r.accountId]?.name || 'sin cuenta')} · ${n < 0 ? `<span class="neg">vencido hace ${-n} días</span>` : `vence ${relDay(r.next)} (${fdate(r.next)})`}</div></div>
+  const row = r => { const n = daysBetween(today(), r.next); return `<div class="row"><span class="avatar" style="color:${n < 0 ? 'var(--neg)' : r.next <= lim ? 'var(--warn)' : 'var(--c6)'}">${ico('pagos')}</span><div class="main"><div class="t">${esc(r.name)}${r.demo ? '<span class="pill-demo">ejemplo</span>' : ''}</div><div class="s">${FREQ[r.freq]} · ${esc(S.accounts[r.accountId]?.name || 'sin cuenta')} · ${n < 0 ? `<span class="neg">vencido hace ${-n} días</span>` : `vence ${relDay(r.next)} (${fdate(r.next)})`}</div></div>
     <div class="r"><div class="amt">${fmt(r.amount, r.currency)}</div><div class="btns" style="justify-content:flex-end;margin-top:4px"><button class="btn sm primary" data-act="pay" data-id="${r.id}">Pagado</button><button class="btn sm ghost" data-act="edit-rec" data-id="${r.id}">Editar</button></div></div></div>`; };
   const soon = list.filter(r => r.active !== false && r.next <= lim), later = list.filter(r => !(r.active !== false && r.next <= lim));
   return modeNotice() + `<div class="card-head"><h1>Pagos recurrentes</h1><button class="btn primary" data-act="new-rec">Nuevo pago</button></div>
@@ -541,7 +541,7 @@ function vMigrate() {
 }
 function vMas() {
   const items = [['cuentas', 'Cuentas y billeteras', 'Bancos, Nequi, efectivo, cripto'], ['inversiones', 'Inversiones', 'Compras y ventas de cripto'], ['pagos', 'Pagos recurrentes', 'Suscripciones, arriendo, cuotas'], ['ajustes', 'Ajustes', 'Moneda, tema, categorías, respaldo']];
-  return `<h1>Más</h1><div class="morelist">${items.map(([k, t, s]) => `<button data-go="${k}"><span class="avatar" style="background:var(--accent)">${ico(k)}</span><span><b>${t}</b><span>${s}</span></span></button>`).join('')}</div>`;
+  return `<h1>Más</h1><div class="morelist">${items.map(([k, t, s]) => `<button data-go="${k}"><span class="avatar" style="color:var(--accent)">${ico(k)}</span><span><b>${t}</b><span>${s}</span></span></button>`).join('')}</div>`;
 }
 const VIEW_FN = { inicio: vInicio, cuentas: vCuentas, movimientos: vMovimientos, inversiones: vInversiones, mercado: vMercado, ahorro: vAhorro, pagos: vPagos, ajustes: vAjustes, mas: vMas };
 
@@ -592,12 +592,14 @@ function mountCharts() {
   for (const key of ['USDCOP', 'EURCOP', 'EURUSD', 'BTC']) {
     const el = $('#ch-' + key); if (!el) continue;
     const from = addDays(today(), -UI.range[key]);
-    let s = key === 'BTC' ? (S.market.crypto.coins.BTC.hist || []).slice() : seriesFor(key);
-    if (key === 'BTC') { const u = coinUsd('BTC'); if (u != null) s.push([today(), u]); }
-    s = s.filter(p => p[0] >= from);
+    // 1 día de Bitcoin: precios cada 5 minutos (las tasas de cambio solo tienen un dato por día: ayer y hoy)
+    const intra = key === 'BTC' && UI.range.BTC === 1 && INTRA.BTC;
+    let s = intra ? INTRA.BTC.slice() : key === 'BTC' ? (S.market.crypto.coins.BTC.hist || []).slice() : seriesFor(key);
+    if (key === 'BTC' && !intra) { const u = coinUsd('BTC'); if (u != null) s.push([today(), u]); }
+    if (!intra) s = s.filter(p => p[0] >= from);
     const q = key === 'EURUSD' || key === 'BTC' ? 'USD' : 'COP';
     const col = s.length > 1 && s[s.length - 1][1] >= s[0][1] ? cssv('--pos') : cssv('--neg');
-    CH.push(new Chart(el, { type: 'line', data: { labels: s.map(p => fdate(p[0]).slice(0, -5)), datasets: [{ data: s.map(p => p[1]), borderColor: col, backgroundColor: hexA(col, .1), fill: true, tension: .25, pointRadius: s.length < 12 ? 2.5 : 0, borderWidth: 2 }] },
+    CH.push(new Chart(el, { type: 'line', data: { labels: s.map(p => intra ? p[0] : fdate(p[0]).slice(0, -5)), datasets: [{ data: s.map(p => p[1]), borderColor: col, backgroundColor: hexA(col, .08), fill: true, tension: .25, pointRadius: s.length < 12 ? 2.5 : 0, borderWidth: 1.5 }] },
       options: baseOpts(q, { scales: { x: { grid: { display: false }, ticks: { color: cssv('--ink-2'), maxTicksLimit: 4, maxRotation: 0 } }, y: { grid: { color: cssv('--line') }, ticks: { color: cssv('--ink-2'), maxTicksLimit: 4, callback: v => key === 'EURUSD' ? num(v, 3) : fmtShort(v, q) }, border: { display: false } } } }) }));
   }
 }
@@ -843,7 +845,7 @@ const ACTS = {
   'new-alert': () => alertForm(), 'alert-off': id => safe(() => put('alerts', id, { ...S.alerts[id], active: false }), 'Alerta pausada'),
   'toggle-alert': id => { const a = S.alerts[id]; safe(() => put('alerts', id, { ...a, active: a.active === false })); },
   'del-alert': id => safe(() => del('alerts', id), 'Alerta borrada'),
-  'range': (_, el) => { UI.range[el.dataset.key] = +el.dataset.days; render(); },
+  'range': (_, el) => { UI.range[el.dataset.key] = +el.dataset.days; render(); if (el.dataset.key === 'BTC' && +el.dataset.days === 1) loadIntraday(); },
   'manual-rates': () => ratesForm(), 'add-coin': () => coinForm(),
   'new-cat': () => catForm(), 'edit-cat': id => catForm(S.categories[id]),
   'del-cat': id => { closeSheet(); safe(() => del('categories', id), 'Categoría eliminada'); },
@@ -992,6 +994,16 @@ async function fillHistory() {
     }
     await put('market', 'crypto', { ...cr, coins });
   }
+}
+/* Precio de Bitcoin de las últimas 24 horas (cada 5 minutos). Se pide solo al elegir "1 día". */
+const INTRA = { BTC: null, at: 0 };
+async function loadIntraday() {
+  if (INTRA.BTC && Date.now() - INTRA.at < 5 * 60000) return;
+  try {
+    const r = await getJSON(`https://api.coingecko.com/api/v3/coins/${COIN_IDS.BTC}/market_chart?vs_currency=usd&days=1`);
+    INTRA.BTC = r.prices.map(([ms, p]) => { const d = new Date(ms); return [`${pad(d.getHours())}:${pad(d.getMinutes())}`, +p.toFixed(2)]; });
+    INTRA.at = Date.now(); render();
+  } catch (e) { toast('No se pudo traer el precio de las últimas 24 horas'); }
 }
 /* Datos de mercado incluidos con la app (carpeta data/), por si es la primera vez o no hay internet. */
 async function loadSeedMarket() {
