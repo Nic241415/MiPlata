@@ -311,7 +311,7 @@ const VIEWS = [['inicio', 'Inicio'], ['cuentas', 'Cuentas'], ['movimientos', 'Mo
 const TABS = [['inicio', 'Inicio'], ['movimientos', 'Movimientos'], ['mercado', 'Mercado'], ['ahorro', 'Ahorro'], ['mas', 'Más']];
 function renderNav() {
   const cur = UI.view; const inMore = ['cuentas', 'inversiones', 'pagos', 'ajustes', 'mas'].includes(cur);
-  $('#rail').innerHTML = `<div class="brand">Mi Plata</div>` + VIEWS.map(([k, l]) => `<button data-go="${k}" ${cur === k ? 'aria-current="page"' : ''}>${ico(k)}${l}</button>`).join('');
+  $('#rail').innerHTML = VIEWS.map(([k, l]) => `<button data-go="${k}" ${cur === k ? 'aria-current="page"' : ''}>${ico(k)}${l}</button>`).join('');
   $('#tabbar').innerHTML = TABS.map(([k, l]) => `<button data-go="${k}" ${(cur === k || (k === 'mas' && inMore)) ? 'aria-current="page"' : ''}>${ico(k)}<span>${l}</span></button>`).join('');
   $('#base-sel').value = baseCur();
 }
@@ -519,7 +519,7 @@ function storageCard() {
   return `<section class="card"><h2>Dónde se guarda todo</h2>${Store.configError ? `<div class="notice warn" style="margin-bottom:10px"><span class="dot"></span><div class="grow">${esc(Store.configError)}</div></div>` : ''}<p class="small muted" style="margin:0">Tus datos se guardan solo en este navegador, en este computador. Si borras los datos del navegador, se pierden: exporta un respaldo de vez en cuando. Para guardarlos en la nube, llena el archivo js/config.js con los datos de Supabase (mira el README). La app nunca pide claves de tus bancos: todo se escribe a mano.</p></section>`;
 }
 function vLogin() {
-  return `<section class="card" data-gate="login" style="max-width:440px;margin:24px auto 0;width:100%"><h1>Entra a Mi Plata</h1>
+  return `<section class="card" data-gate="login" style="max-width:440px;margin:24px auto 0;width:100%"><h1>Inicia sesión</h1>
     <p class="muted small">Tus datos se guardan en la nube con tu cuenta. Entra con el mismo correo desde el celular o el computador.</p>
     <form data-form="login" class="fgrid" novalidate>
       ${fld('Correo', '<input id="login-email" name="email" type="email" autocomplete="email" required>')}
@@ -930,7 +930,7 @@ function importData(file) {
   const rd = new FileReader();
   rd.onload = () => {
     let data; try { data = JSON.parse(rd.result); } catch (e) { return toast('El archivo no es un respaldo válido'); }
-    if (data.app !== 'Mi Plata') return toast('Este archivo no es un respaldo de Mi Plata');
+    if (data.app !== 'Mi Plata') return toast('Este archivo no es un respaldo de esta app');
     const list = []; for (const c of COLS) for (const [id, d] of Object.entries(data[c] || {})) list.push(['put', c, id, d]);
     askConfirm('¿Restaurar respaldo?', `Se cargarán ${list.length} datos del ${esc(fdate(data.exported.slice(0, 10)))}. Si ya existen con el mismo identificador, se reemplazan.`, 'Restaurar', () => safe(() => writeMany(list, 'Restaurando'), 'Respaldo restaurado'));
   };
