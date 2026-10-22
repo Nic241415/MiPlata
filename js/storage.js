@@ -92,6 +92,17 @@ const Store = {
     if (error) throw dbError(error);
   },
 
+  /** Borra TODOS los datos de la persona (Ajustes → Reiniciar cuenta). */
+  async clearAll() {
+    if (this.mode === 'cloud') {
+      const { error } = await this.sb.from('docs').delete().eq('user_id', this.user.id);
+      if (error) throw dbError(error);
+      return;
+    }
+    this.data = null;
+    try { localStorage.removeItem(this.KEY); } catch (e) { }
+  },
+
   /** Lo que haya guardado en este navegador (para pasarlo a la nube la primera vez). */
   localSnapshot() {
     try { return JSON.parse(localStorage.getItem(this.KEY)) || null; } catch (e) { return null; }

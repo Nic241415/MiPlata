@@ -299,6 +299,8 @@ const P = {
   piggy: 'M5 11a7 6 0 0 1 13-2h2v4h-2l-1 3v3h-3v-2h-4v2H7v-3a6 6 0 0 1-2-5zM15 9h.01',
   sun: 'M12 17a5 5 0 1 0 0-10 5 5 0 0 0 0 10zM12 1v2M12 21v2M4.2 4.2l1.4 1.4M18.4 18.4l1.4 1.4M1 12h2M21 12h2M4.2 19.8l1.4-1.4M18.4 5.6l1.4-1.4',
   moon: 'M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z',
+  eye: 'M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12zM12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z',
+  eyeOff: 'M3 3l18 18M10.6 5.1A10 10 0 0 1 12 5c6.4 0 10 7 10 7a17 17 0 0 1-3.2 4.2M6.6 6.6C3.8 8.4 2 12 2 12s3.6 7 10 7a9.6 9.6 0 0 0 5.4-1.6M9.9 9.9a3 3 0 0 0 4.2 4.2',
   auto: 'M12 21a9 9 0 1 0 0-18v18z M12 3a9 9 0 0 1 0 18',
   in: 'M12 19V5M5 12l7 7 7-7', out: 'M12 5v14M5 12l7-7 7 7', tr: 'M7 4L3 8l4 4M3 8h14M17 20l4-4-4-4M21 16H7',
 };
@@ -342,9 +344,10 @@ function vInicio() {
   return modeNotice() + `
   ${demo ? `<div class="notice warn"><span class="dot"></span><div class="grow"><b>Estás viendo datos de ejemplo.</b> Cuando quieras empezar con tus cifras reales, bórralos.</div><button class="btn sm" data-act="ask-clear-demo">Borrar ejemplo</button></div>` : ''}
   <section class="hero">
-    <span class="label">Patrimonio neto · ${base}</span>
-    <span class="big">${fmt(nw, base)}</span>
-    <span class="sub">${d >= 0 ? '▲' : '▼'} ${fmt(Math.abs(d), base)} desde el inicio de ${MESES_L[+key.slice(5) - 1]} · ${esc(rateLine())}</span>
+    <div class="hero-head"><span class="label">Patrimonio neto · ${base}</span>
+      <button class="eye" data-act="toggle-hide" aria-pressed="${moneyHidden()}" aria-label="${moneyHidden() ? 'Mostrar el dinero' : 'Ocultar el dinero'}" title="${moneyHidden() ? 'Mostrar' : 'Ocultar'}">${ico(moneyHidden() ? 'eyeOff' : 'eye')}</button></div>
+    <span class="big">${moneyHidden() ? `${FIAT[base].sym} ••••••` : fmt(nw, base)}</span>
+    <span class="sub">${moneyHidden() ? '' : `${d >= 0 ? '▲' : '▼'} ${fmt(Math.abs(d), base)} desde el inicio de ${MESES_L[+key.slice(5) - 1]} · `}${esc(rateLine())}</span>
   </section>
   <div class="notices">${avisos()}</div>
   <section class="card"><div class="card-head"><h2>Resumen de ${MESES_L[+key.slice(5) - 1]}</h2><button class="btn sm" data-go="movimientos">Ver movimientos</button></div>
@@ -511,7 +514,9 @@ function vAjustes() {
     <div class="btns">${nDemo ? '<button class="btn danger" data-act="ask-clear-demo">Borrar datos de ejemplo</button>' : '<button class="btn" data-act="load-demo">Cargar datos de ejemplo</button>'}</div></section>
   <section class="card"><h2>Respaldo</h2><p class="small muted" style="margin-top:0">Descarga todos tus datos en un archivo .json. Guárdalo en tu computador o en la nube. Con "Restaurar" puedes volver a cargarlo.</p>
     <div class="btns"><button class="btn primary" data-act="export">Exportar mis datos</button><label class="btn" for="import-file">Restaurar respaldo</label><input id="import-file" type="file" accept=".json,application/json" hidden></div></section>
-  ${storageCard()}`;
+  ${storageCard()}
+  <section class="card"><h2>Reiniciar cuenta</h2><p class="small muted" style="margin-top:0">Borra todo: cuentas, movimientos, inversiones, metas, pagos, alertas, categorías y ajustes${Store.mode === 'cloud' ? ', también en la nube' : ''}. No se puede deshacer. Si quieres guardar algo, exporta un respaldo antes.</p>
+    <button class="btn danger" data-act="ask-reset">Reiniciar y borrar todo</button></section>`;
 }
 function storageCard() {
   if (Store.mode === 'cloud') return `<section class="card"><h2>Tu cuenta</h2><p class="small muted" style="margin-top:0">Tus datos se guardan en la nube (Supabase) con la cuenta <b>${esc(Store.user?.email || '')}</b>. Entra con ese correo desde el celular o el computador para verlos. Solo tú puedes leerlos. La app nunca pide claves de tus bancos: todo se escribe a mano.</p>
@@ -554,7 +559,7 @@ function baseOpts(cur, extra = {}) {
   return { responsive: true, maintainAspectRatio: false, animation: false, interaction: { mode: 'index', intersect: false },
     plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => ' ' + fmt(c.parsed.y ?? c.parsed, cur) } } },
     scales: { x: { grid: { display: false }, ticks: { color: ink2, maxTicksLimit: 6, maxRotation: 0 }, border: { color: line } },
-      y: { grid: { color: line }, ticks: { color: ink2, maxTicksLimit: 5, callback: v => fmtShort(v, cur) }, border: { display: false } } }, ...extra };
+      y: { grid: { display: false }, ticks: { color: ink2, maxTicksLimit: 5, callback: v => fmtShort(v, cur) }, border: { display: false } } }, ...extra };
 }
 function mountCharts() {
   while (CH.length) CH.pop().destroy();
@@ -587,7 +592,7 @@ function mountCharts() {
     const e = Object.entries(g).sort((x, y) => y[1] - x[1]);
     CH.push(new Chart(tC, { type: 'bar', data: { labels: e.map(x => ACC_TYPES[x[0]]), datasets: [{ data: e.map(x => x[1]), backgroundColor: e.map((_, i) => C[i % C.length]), borderRadius: 6, barThickness: 22 }] },
       options: baseOpts(base, { indexAxis: 'y', plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => ' ' + fmt(c.parsed.x, base) } } },
-        scales: { x: { grid: { color: cssv('--line') }, ticks: { color: cssv('--ink-2'), maxTicksLimit: 4, callback: v => fmtShort(v, base) }, border: { display: false } }, y: { grid: { display: false }, ticks: { color: cssv('--ink') }, border: { display: false } } } }) }));
+        scales: { x: { grid: { display: false }, ticks: { color: cssv('--ink-2'), maxTicksLimit: 4, callback: v => fmtShort(v, base) }, border: { display: false } }, y: { grid: { display: false }, ticks: { color: cssv('--ink') }, border: { display: false } } } }) }));
   }
   for (const key of ['USDCOP', 'EURCOP', 'EURUSD', 'BTC']) {
     const el = $('#ch-' + key); if (!el) continue;
@@ -600,7 +605,7 @@ function mountCharts() {
     const q = key === 'EURUSD' || key === 'BTC' ? 'USD' : 'COP';
     const col = s.length > 1 && s[s.length - 1][1] >= s[0][1] ? cssv('--pos') : cssv('--neg');
     CH.push(new Chart(el, { type: 'line', data: { labels: s.map(p => intra ? p[0] : fdate(p[0]).slice(0, -5)), datasets: [{ data: s.map(p => p[1]), borderColor: col, backgroundColor: hexA(col, .08), fill: true, tension: .25, pointRadius: s.length < 12 ? 2.5 : 0, borderWidth: 1.5 }] },
-      options: baseOpts(q, { scales: { x: { grid: { display: false }, ticks: { color: cssv('--ink-2'), maxTicksLimit: 4, maxRotation: 0 } }, y: { grid: { color: cssv('--line') }, ticks: { color: cssv('--ink-2'), maxTicksLimit: 4, callback: v => key === 'EURUSD' ? num(v, 3) : fmtShort(v, q) }, border: { display: false } } } }) }));
+      options: baseOpts(q, { scales: { x: { grid: { display: false }, ticks: { color: cssv('--ink-2'), maxTicksLimit: 4, maxRotation: 0 } }, y: { grid: { display: false }, ticks: { color: cssv('--ink-2'), maxTicksLimit: 4, callback: v => key === 'EURUSD' ? num(v, 3) : fmtShort(v, q) }, border: { display: false } } } }) }));
   }
 }
 
@@ -819,6 +824,7 @@ const FORMS = {
 };
 
 /* ---------- Acciones ---------- */
+const RESET_TEXT = 'BORRAR TODO';
 const ACTS = {
   'new-tx': () => txForm(), 'edit-tx': id => txForm(S.txs[id]),
   'del-tx': id => askConfirm('¿Eliminar movimiento?', 'El saldo de la cuenta se recalcula sin este movimiento.', 'Eliminar', () => safe(() => del('txs', id), 'Movimiento eliminado')),
@@ -854,6 +860,21 @@ const ACTS = {
   'load-demo': () => loadDemo(),
   'ask-clear-demo': () => askConfirm('¿Borrar los datos de ejemplo?', 'Se borran solo las cuentas, movimientos, metas, pagos y alertas marcados como ejemplo. Lo que tú registraste se queda.', 'Borrar ejemplo', clearDemo),
   'export': () => exportData(),
+  'toggle-hide': () => setMoneyHidden(!moneyHidden()),
+  'ask-reset': () => openSheet('¿Borrar todo?', `<p style="margin:0">Se borrarán <b>todos</b> tus datos${Store.mode === 'cloud' ? ' en la nube y en todos tus aparatos' : ''}. Esto no se puede deshacer.</p>
+    ${fld(`Para confirmar, escribe <b>${RESET_TEXT}</b>`, `<input id="reset-text" autocomplete="off" spellcheck="false">`)}
+    <div class="btns"><button type="button" class="btn danger" id="reset-go" data-act="do-reset" disabled>Borrar todo</button><button type="button" class="btn" data-act="close-sheet">Cancelar</button></div>`),
+  'do-reset': async () => {
+    if ($('#reset-text')?.value.trim().toUpperCase() !== RESET_TEXT) return;
+    closeSheet(); toast('Borrando todo…');
+    await safe(async () => {
+      await Store.clearAll();
+      for (const c of COLS) S[c] = {};
+      UI.view = 'inicio';
+      if (Store.mode === 'cloud') await loadData(); // la nube queda vacía: muestra "¿Cómo quieres empezar?"
+      else { await loadSeedMarket(); await firstRun(false); render(); }
+    }, 'Listo: tu cuenta quedó en blanco');
+  },
   'signup': async (_, el) => {
     const f = el.closest('form'); const email = f.email.value.trim(), pw = f.password.value; const msg = $('#login-msg');
     if (!email || pw.length < 6) { msg.textContent = 'Escribe tu correo y una contraseña de al menos 6 caracteres.'; return; }
@@ -891,6 +912,7 @@ document.addEventListener('submit', e => { e.preventDefault(); const f = e.targe
 document.addEventListener('input', e => {
   const t = e.target;
   if (t.dataset.filter === 'q') { UI.f.q = t.value; UI.txLimit = 150; sched(); }
+  if (t.id === 'reset-text') $('#reset-go').disabled = t.value.trim().toUpperCase() !== RESET_TEXT;
   if (t.id === 'tx-rate') syncFx(false, 'rate'); if (t.id === 'tx-toamount') syncFx(false, 'toamount'); if (t.id === 'tx-amount') syncFx(false, 'amount');
 });
 document.addEventListener('change', e => {
@@ -903,6 +925,9 @@ document.addEventListener('change', e => {
 document.addEventListener('keydown', e => { if (e.key === 'Escape' && $('#sheet-root').innerHTML) closeSheet(); });
 
 /* ---------- Tema ---------- */
+/* Ocultar el dinero en Inicio: se recuerda en cada aparato (no se guarda en la nube). */
+function moneyHidden() { try { return localStorage.getItem('mp-hide') === '1'; } catch (e) { return false; } }
+function setMoneyHidden(v) { try { localStorage.setItem('mp-hide', v ? '1' : '0'); } catch (e) { } render(); }
 function themeMode() { try { return localStorage.getItem('mp-theme') || 'auto'; } catch (e) { return 'auto'; } }
 const HOST_THEME = document.documentElement.getAttribute('data-theme');
 function applyTheme() {
