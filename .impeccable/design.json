@@ -1,0 +1,59 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-10-30T12:00:00-05:00",
+  "title": "Design System: Mi Plata",
+  "extensions": {
+    "colorMeta": {
+      "azul-libreta": { "role": "primary", "displayName": "Azul de libreta", "canonical": "#2F4A7A", "tonalRamp": ["#0E1729", "#16243F", "#1E3560", "#2F4A7A", "#4A679B", "#7390C2", "#9DB8E8", "#D3E0F5"] },
+      "azul-papel": { "role": "primary", "displayName": "Azul papel", "canonical": "#9DB8E8" },
+      "carbon": { "role": "neutral", "displayName": "Carbón", "canonical": "#121418", "tonalRamp": ["#0D0F12", "#121418", "#1A1D23", "#23272F", "#2B3039", "#596270", "#99A2AF", "#E8EBEF"] },
+      "papel-gris": { "role": "neutral", "displayName": "Papel gris", "canonical": "#EEF0F3" }
+    },
+    "typographyMeta": {
+      "display": { "displayName": "Cifra principal", "purpose": "Patrimonio neto y la marca en la bienvenida." },
+      "figure": { "displayName": "Cifra de libreta", "purpose": "Montos, fechas y saldos en columnas." },
+      "label": { "displayName": "Cabecera de columna", "purpose": "FECHA · CONCEPTO · VALOR · SALDO." }
+    },
+    "shadows": [],
+    "motion": [
+      { "name": "ease-libreta", "value": "cubic-bezier(.16, 1, .3, 1)", "purpose": "Impresión de filas en la bienvenida y entrada de hojas." },
+      { "name": "print", "value": "clip-path inset(0 100% 0 0) → inset(0); .7s; 0,22s entre filas", "purpose": "Filas de la bienvenida que se imprimen." }
+    ],
+    "breakpoints": [
+      { "name": "fgrid", "value": "560px" },
+      { "name": "columns", "value": "700px" },
+      { "name": "rail", "value": "900px" }
+    ]
+  },
+  "components": [
+    { "name": "Botón primario", "kind": "button", "refersTo": "button-primary", "description": "Acción principal: Guardar, Entrar, Nuevo movimiento.",
+      "html": "<button class=\"ds-btn-primary\">Guardar</button>",
+      "css": ".ds-btn-primary { background: var(--accent, #2F4A7A); color: #fff; border: 1px solid var(--accent, #2F4A7A); border-radius: 3px; min-height: 40px; padding: 8px 14px; font: 600 14px 'Red Hat Text', system-ui, sans-serif; cursor: pointer; transition: background-color .12s } .ds-btn-primary:hover { background: #283F68 } .ds-btn-primary:focus-visible { outline: 2px solid #9DB8E8; outline-offset: 2px }" },
+    { "name": "Botón secundario", "kind": "button", "refersTo": "button-secondary", "description": "Acciones secundarias: Ver todos, Limpiar filtros.",
+      "html": "<button class=\"ds-btn\">Ver todos</button>",
+      "css": ".ds-btn { background: #1A1D23; color: #E8EBEF; border: 1px solid #2B3039; border-radius: 3px; min-height: 40px; padding: 8px 14px; font: 600 14px 'Red Hat Text', system-ui, sans-serif; cursor: pointer } .ds-btn:hover { background: #23272F } .ds-btn:focus-visible { outline: 2px solid #9DB8E8; outline-offset: 2px }" },
+    { "name": "Campo de monto", "kind": "input", "refersTo": "input", "description": "Campo con monto en mono.",
+      "html": "<label class=\"ds-field\"><span>Monto</span><input inputmode=\"decimal\" placeholder=\"0\"></label>",
+      "css": ".ds-field { display: grid; gap: 5px; font: 600 12.5px 'Red Hat Text', sans-serif; color: #99A2AF } .ds-field input { background: #15181D; color: #E8EBEF; border: 1px solid #2B3039; border-radius: 3px; min-height: 42px; padding: 9px 11px; font: 500 15px 'Red Hat Mono', monospace } .ds-field input:hover { border-color: #99A2AF } .ds-field input:focus { outline: 0; border-color: #9DB8E8; box-shadow: 0 0 0 1px #9DB8E8 }" },
+    { "name": "Barra lateral", "kind": "nav", "refersTo": "nav-rail", "description": "Navegación de escritorio con color propio.",
+      "html": "<nav class=\"ds-rail\"><div class=\"ds-brand\">Mi <i>Plata</i></div><button aria-current=\"page\">Inicio</button><button>Movimientos</button></nav>",
+      "css": ".ds-rail { display: flex; flex-direction: column; gap: 2px; width: 232px; padding: 26px 14px; background: #0D0F12; color: #8D96A3 } .ds-brand { font: 800 1.5rem 'Red Hat Display', sans-serif; letter-spacing: -0.03em; color: #E8EBEF; padding: 0 10px 30px } .ds-brand i { font-style: normal; color: #9DB8E8 } .ds-rail button { text-align: left; padding: 10px; border: 0; border-radius: 3px; background: none; color: inherit; font: 500 15px 'Red Hat Text', sans-serif; cursor: pointer } .ds-rail button:hover { background: #181B21; color: #E8EBEF } .ds-rail button[aria-current=page] { background: #1E2738; color: #E8EBEF; font-weight: 600 }" },
+    { "name": "Libreta", "kind": "custom", "refersTo": "ledger", "description": "Movimientos como líneas de libreta con saldo corrido.",
+      "html": "<section class=\"ds-ledger\"><div class=\"ds-h\"><span>Fecha</span><span>Concepto</span><span>Valor</span></div><div class=\"ds-r\"><span class=\"d\">24 oct</span><span><b>Netflix</b><small>Suscripciones · Bancolombia</small></span><span class=\"v neg\">−$ 26.900</span></div><div class=\"ds-r\"><span class=\"d\">1 oct</span><span><b>Salario</b><small>Salario · Bancolombia</small></span><span class=\"v pos\">+$ 5.200.000</span></div></section>",
+      "css": ".ds-ledger { background: #1A1D23; border-top: 3px solid #2F4A7A; color: #E8EBEF; font: 14px 'Red Hat Text', sans-serif } .ds-h, .ds-r { display: grid; grid-template-columns: 5rem 1fr auto; gap: 12px; padding: 10px 18px; align-items: baseline; border-bottom: 1px solid #2B3039 } .ds-h { font: 600 11px 'Red Hat Mono', monospace; letter-spacing: .08em; text-transform: uppercase; color: #99A2AF } .ds-r .d { font: 500 13px 'Red Hat Mono', monospace; color: #99A2AF } .ds-r small { display: block; color: #99A2AF; font-size: 12.5px } .ds-r .v { font: 500 14px 'Red Hat Mono', monospace; text-align: right } .pos { color: #4CC38A } .neg { color: #F07167 } .ds-r:hover { background: #23272F }" }
+  ],
+  "narrative": {
+    "northStar": "La libreta de ahorros",
+    "overview": "Mi Plata se ve como la libreta que el banco imprimía línea por línea: fecha, concepto, valor y saldo, en columnas exactas. La interfaz es sobria (carbón, grafito, blanco y azules oscuros) y deja que las cifras hablen. Es plana: no hay sombras ni burbujas; la profundidad se logra con escalones de gris y con una regla azul de 3px que marca cada página de libreta.",
+    "keyCharacteristics": ["Cifras en Red Hat Mono, alineadas a la derecha, en columnas.", "Patrimonio en Red Hat Display 800, enorme y apretado.", "Páginas de libreta con regla superior azul de 3px y esquinas rectas.", "Barra de navegación con color propio (carbón profundo o azul marino).", "Esquinas casi rectas (3–4px), líneas de 1px, sin sombras."],
+    "rules": [
+      { "name": "The Verde-Es-Ingreso Rule", "body": "Verde y rojo solo marcan ingresos, ganancias, gastos y pérdidas. Nunca como decoración.", "section": "colors" },
+      { "name": "The Azul-Es-Dónde-Estás Rule", "body": "El azul claro de libreta señala la sección actual, el foco y lo seleccionado.", "section": "colors" },
+      { "name": "The Paleta-Sobria Rule", "body": "Las cuentas solo eligen entre azules y grises; colores viejos se traducen a su equivalente sobrio.", "section": "colors" },
+      { "name": "The Cifra-En-Columna Rule", "body": "Todo monto que se compara con otro va en Red Hat Mono y alineado a la derecha.", "section": "typography" },
+      { "name": "The Plano-Siempre Rule", "body": "Ningún elemento proyecta sombra; si algo necesita destacarse, cambia de tono o lleva la regla azul.", "section": "elevation" }
+    ],
+    "dos": ["Do poner cada monto comparable en Red Hat Mono alineado a la derecha.", "Do usar la regla azul de 3px solo en páginas de libreta, hojas y la caja de acceso, con esquinas rectas.", "Do mantener verde/rojo solo para ingreso/gasto y ámbar solo para avisos.", "Do cambiar los dos bloques del tema oscuro en styles.css a la vez."],
+    "donts": ["Don't usar sombras, burbujas ni esquinas de más de 4px (pedido del dueño: plano y minimalista).", "Don't agregar colores fuera de grises, negros, blancos y azules oscuros (pedido del dueño: paleta sobria).", "Don't poner etiquetas pequeñas en mayúsculas encima de títulos; las mayúsculas mono son solo para cabeceras de columna.", "Don't usar la mono para texto corrido; es solo para cifras, fechas y cabeceras."]
+  }
+}

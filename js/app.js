@@ -215,12 +215,12 @@ function demoData() {
   const round = (v, step) => Math.round(v / step) * step;
   const start = addMonths(T.slice(0, 8) + '01', -5);
   const A = (id, name, type, sub, currency, initial, color, icon, order) => out.push(['put', 'accounts', id, { name, type, sub, currency, initial, color, icon, since: start, order, demo: true }]);
-  A('d-banco', 'Bancolombia Ahorros', 'bank', 'Ahorros', 'COP', 3200000, '#3657D6', 'bank', 1);
-  A('d-nequi', 'Nequi', 'wallet', '', 'COP', 150000, '#B8418F', 'wallet', 2);
-  A('d-efectivo', 'Efectivo', 'cash', '', 'COP', 250000, '#0E8F7E', 'cash', 3);
-  A('d-wise', 'Wise', 'wallet', '', 'USD', 900, '#6D5BD0', 'wallet', 4);
-  A('d-binance', 'Binance', 'crypto', '', 'USDT', 650, '#D07300', 'crypto', 5);
-  A('d-ledger', 'Billetera BTC', 'crypto', '', 'BTC', 0.01, '#7A8590', 'crypto', 6);
+  A('d-banco', 'Bancolombia Ahorros', 'bank', 'Ahorros', 'COP', 3200000, '#2F4A7A', 'bank', 1);
+  A('d-nequi', 'Nequi', 'wallet', '', 'COP', 150000, '#5B7FC0', 'wallet', 2);
+  A('d-efectivo', 'Efectivo', 'cash', '', 'COP', 250000, '#9DB8E8', 'cash', 3);
+  A('d-wise', 'Wise', 'wallet', '', 'USD', 900, '#1E3560', 'wallet', 4);
+  A('d-binance', 'Binance', 'crypto', '', 'USDT', 650, '#6E7A8A', 'crypto', 5);
+  A('d-ledger', 'Billetera BTC', 'crypto', '', 'BTC', 0.01, '#A9B2BE', 'crypto', 6);
   const tx = (date, type, amount, accountId, categoryId, note, extra = {}) => { if (date <= T) out.push(['put', 'txs', 'd-' + uid(), { date, type, amount, accountId, categoryId, note, ...extra, demo: true }]); };
   for (let m = 0; m < 6; m++) {
     const ms = addMonths(start, m); const d = n => ms.slice(0, 8) + pad(n);
@@ -306,14 +306,17 @@ const P = {
 };
 const ico = (n, cls = 'ico') => `<svg class="${cls}" viewBox="0 0 24 24" aria-hidden="true"><path d="${P[n] || P.wallet}"/></svg>`;
 const ACC_TYPES = { bank: 'Banco', wallet: 'Billetera digital', cash: 'Efectivo', crypto: 'Cripto / exchange' };
-const SWATCH = ['#3657D6', '#B8418F', '#0E8F7E', '#6D5BD0', '#D07300', '#7A8590', '#1F7A3A', '#C2352B'];
+const SWATCH = ['#2F4A7A', '#5B7FC0', '#9DB8E8', '#1E3560', '#6E7A8A', '#A9B2BE', '#3D4B5C', '#8394AD'];
+/* Colores del diseño anterior: las cuentas que ya los tienen se muestran con su equivalente sobrio. */
+const OLD_SWATCH = ['#3657D6', '#B8418F', '#0E8F7E', '#6D5BD0', '#D07300', '#7A8590', '#1F7A3A', '#C2352B'];
+const accColor = c => SWATCH[OLD_SWATCH.indexOf(c)] || c || '#6E7A8A';
 
 /* ---------- Navegación ---------- */
 const VIEWS = [['inicio', 'Inicio'], ['cuentas', 'Cuentas'], ['movimientos', 'Movimientos'], ['inversiones', 'Inversiones'], ['mercado', 'Mercado'], ['ahorro', 'Ahorro'], ['pagos', 'Pagos'], ['ajustes', 'Ajustes']];
 const TABS = [['inicio', 'Inicio'], ['movimientos', 'Movimientos'], ['mercado', 'Mercado'], ['ahorro', 'Ahorro'], ['mas', 'Más']];
 function renderNav() {
   const cur = UI.view; const inMore = ['cuentas', 'inversiones', 'pagos', 'ajustes', 'mas'].includes(cur);
-  $('#rail').innerHTML = VIEWS.map(([k, l]) => `<button data-go="${k}" ${cur === k ? 'aria-current="page"' : ''}>${ico(k)}${l}</button>`).join('');
+  $('#rail').innerHTML = '<div class="brand">Mi <i>Plata</i></div>' + VIEWS.map(([k, l]) => `<button data-go="${k}" ${cur === k ? 'aria-current="page"' : ''}>${ico(k)}${l}</button>`).join('');
   $('#tabbar').innerHTML = TABS.map(([k, l]) => `<button data-go="${k}" ${(cur === k || (k === 'mas' && inMore)) ? 'aria-current="page"' : ''}>${ico(k)}<span>${l}</span></button>`).join('');
   $('#base-sel').value = baseCur();
 }
@@ -328,7 +331,7 @@ function avisos() {
   for (const a of triggeredAlerts()) n.push(`<div class="notice neg"><span class="dot" style="color:var(--neg)"></span><div class="grow"><b>Alerta de precio:</b> ${esc(a.pair)} ${a.op === '>' ? 'superó' : 'bajó de'} ${esc(fmtPair(a.pair, a.value))}. Ahora está en <b>${esc(fmtPair(a.pair, a.now))}</b>.</div><button class="btn sm ghost" data-act="alert-off" data-id="${a.id}">Ocultar</button></div>`);
   for (const o of budgetOver(today().slice(0, 7))) n.push(`<div class="notice warn"><span class="dot" style="color:var(--warn)"></span><div class="grow"><b>Te pasaste del presupuesto</b> en ${esc(catName(o.cat))}: llevas ${fmt(o.spent, 'COP')} de ${fmt(o.limit, 'COP')}.</div></div>`);
   const due = dueSoon();
-  if (due.length) n.push(`<div class="notice info"><span class="dot" style="color:var(--accent)"></span><div class="grow"><b>Pagos de los próximos 7 días:</b> ${due.map(r => `${esc(r.name)} (${r.next < today() ? '<span class="neg">vencido</span>' : esc(relDay(r.next))}, ${fmt(r.amount, r.currency)})`).join(' · ')}</div><button class="btn sm ghost" data-go="pagos">Ver</button></div>`);
+  if (due.length) n.push(`<div class="notice info"><span class="dot" style="color:var(--accent-text)"></span><div class="grow"><b>Pagos de los próximos 7 días:</b> ${due.map(r => `${esc(r.name)} (${r.next < today() ? '<span class="neg">vencido</span>' : esc(relDay(r.next))}, ${fmt(r.amount, r.currency)})`).join(' · ')}</div><button class="btn sm ghost" data-go="pagos">Ver</button></div>`);
   return n.join('');
 }
 function relDay(d) { const n = daysBetween(today(), d); return n === 0 ? 'hoy' : n === 1 ? 'mañana' : n < 0 ? `hace ${-n} días` : `en ${n} días`; }
@@ -347,9 +350,10 @@ function vInicio() {
     <div class="hero-head"><span class="label">Patrimonio neto · ${base}</span>
       <button class="eye" data-act="toggle-hide" aria-pressed="${moneyHidden()}" aria-label="${moneyHidden() ? 'Mostrar el dinero' : 'Ocultar el dinero'}" title="${moneyHidden() ? 'Mostrar' : 'Ocultar'}">${ico(moneyHidden() ? 'eyeOff' : 'eye')}</button></div>
     <span class="big">${moneyHidden() ? `${FIAT[base].sym} ••••••` : fmt(nw, base)}</span>
-    <span class="sub">${moneyHidden() ? '' : `${d >= 0 ? '▲' : '▼'} ${fmt(Math.abs(d), base)} desde el inicio de ${MESES_L[+key.slice(5) - 1]} · `}${esc(rateLine())}</span>
+    <span class="sub">${moneyHidden() ? '' : `<b class="${d >= 0 ? 'pos' : 'neg'}">${fmt(d, base, { sign: true })}</b> desde el 1 de ${MESES_L[+key.slice(5) - 1]} · `}${esc(rateLine())}</span>
   </section>
   <div class="notices">${avisos()}</div>
+  ${ledger(Object.values(S.txs).sort(byDateDesc).slice(0, 6), { title: 'Últimos movimientos', more: true })}
   <section class="card"><div class="card-head"><h2>Resumen de ${MESES_L[+key.slice(5) - 1]}</h2><button class="btn sm" data-go="movimientos">Ver movimientos</button></div>
     <div class="stats">
       <div class="stat"><span class="label">Ingresos</span><span class="v pos">${fmt(f.inc, base)}</span></div>
@@ -366,7 +370,7 @@ function vInicio() {
 }
 function accRow(a, bal) {
   const base = baseCur();
-  return `<div class="row click" data-act="edit-acc" data-id="${a.id}"><span class="avatar" style="color:${esc(a.color || '#7A8590')}">${ico(a.icon || a.type)}</span>
+  return `<div class="row click" data-act="edit-acc" data-id="${a.id}"><span class="avatar" style="color:${esc(accColor(a.color))}">${ico(a.icon || a.type)}</span>
     <div class="main"><div class="t">${esc(a.name)}${a.demo ? '<span class="pill-demo">ejemplo</span>' : ''}</div><div class="s">${ACC_TYPES[a.type] || ''}${a.sub ? ' · ' + esc(a.sub) : ''}${a.archived ? ' · archivada' : ''}</div></div>
     <div class="r"><div class="amt ${bal < 0 ? 'neg' : ''}">${fmt(bal, a.currency)}</div>${a.currency !== base ? `<div class="s">≈ ${fmt(conv(bal, a.currency, base), base)}</div>` : ''}</div></div>`;
 }
@@ -378,19 +382,54 @@ function vCuentas() {
     : `<div class="card empty"><b>No hay cuentas</b>Toca "Nueva cuenta" para crear la primera: tu banco, Nequi, el efectivo o tu billetera cripto.</div>`}
   <p class="small muted">El saldo de cada cuenta es su saldo inicial más los movimientos registrados. Toca una cuenta para editarla, archivarla o eliminarla.</p>`;
 }
+const byDateDesc = (a, b) => a.date === b.date ? ((b.created || '') > (a.created || '') ? 1 : -1) : (a.date < b.date ? 1 : -1);
 function filteredTxs() {
   const f = UI.f; const q = f.q.trim().toLowerCase();
   return Object.values(S.txs).filter(t => (!f.from || t.date >= f.from) && (!f.to || t.date <= f.to) && (!f.acc || t.accountId === f.acc || t.toAccountId === f.acc)
     && (!f.cat || t.categoryId === f.cat) && (!f.type || t.type === f.type) && (!q || (t.note || '').toLowerCase().includes(q) || catName(t.categoryId).toLowerCase().includes(q)))
-    .sort((a, b) => a.date === b.date ? ((b.created || '') > (a.created || '') ? 1 : -1) : (a.date < b.date ? 1 : -1));
+    .sort(byDateDesc);
 }
-function txRow(t) {
-  const a = S.accounts[t.accountId], to = S.accounts[t.toAccountId]; const cur = a?.currency || 'COP';
-  let title, sub, amt, cls, icon;
-  if (t.type === 'transfer') { title = t.note || 'Transferencia'; sub = `${esc(a?.name || '¿?')} → ${esc(to?.name || '¿?')}`; amt = fmt(t.amount, cur) + (to && to.currency !== cur ? ` → ${fmt(t.toAmount, to.currency)}` : ''); cls = ''; icon = 'tr'; }
-  else { title = t.note || catName(t.categoryId); sub = `${esc(catName(t.categoryId))} · ${esc(a?.name || 'Cuenta borrada')}`; amt = fmt(t.type === 'income' ? t.amount : -t.amount, cur, { sign: true }); cls = t.type === 'income' ? 'pos' : 'neg'; icon = t.type === 'income' ? 'in' : 'out'; }
-  const bg = t.type === 'income' ? 'var(--pos)' : t.type === 'expense' ? 'var(--neg)' : 'var(--c6)';
-  return `<div class="row click" data-act="edit-tx" data-id="${t.id}"><span class="avatar" style="color:${bg}">${ico(icon)}</span><div class="main"><div class="t">${esc(title)}${t.demo ? '<span class="pill-demo">ejemplo</span>' : ''}</div><div class="s">${sub}</div></div><div class="r"><div class="amt ${cls}">${amt}</div></div></div>`;
+/* Saldo de la cuenta justo después de cada movimiento (como la columna "saldo" de una libreta de ahorros). */
+function runningBalances(accId) {
+  const acc = S.accounts[accId]; if (!acc) return {};
+  let run = +acc.initial || 0; const out = {};
+  const list = Object.values(S.txs).filter(t => t.accountId === accId || t.toAccountId === accId).sort((a, b) => -byDateDesc(a, b));
+  for (const t of list) {
+    if (t.type === 'income') run += t.amount;
+    else if (t.type === 'expense') run -= t.amount;
+    else { if (t.accountId === accId) run -= t.amount; if (t.toAccountId === accId) run += (t.toAmount ?? t.amount); }
+    out[t.id] = run;
+  }
+  return out;
+}
+const fday = s => { const d = parseD(s); return `${d.getDate()} ${MESES[d.getMonth()]}`; };
+/* Una línea de libreta: fecha, concepto, valor y (si se ve una sola cuenta) el saldo que quedó. */
+function ledgerRow(t, prev, accId, bal) {
+  const a = S.accounts[t.accountId], to = S.accounts[t.toAccountId]; let cur = a?.currency || 'COP';
+  let title, sub, amt, cls = '';
+  if (t.type === 'transfer') {
+    title = t.note || 'Transferencia'; sub = `${esc(a?.name || '¿?')} → ${esc(to?.name || '¿?')}`;
+    if (accId && t.toAccountId === accId) { cur = to.currency; amt = fmt(t.toAmount ?? t.amount, cur, { sign: true }); }
+    else if (accId) amt = fmt(-t.amount, cur);
+    else amt = fmt(t.amount, cur) + (to && to.currency !== cur ? ` → ${fmt(t.toAmount, to.currency)}` : '');
+  } else {
+    title = t.note || catName(t.categoryId); sub = `${esc(catName(t.categoryId))} · ${esc(a?.name || 'Cuenta borrada')}`;
+    amt = fmt(t.type === 'income' ? t.amount : -t.amount, cur, { sign: true }); cls = t.type === 'income' ? 'pos' : 'neg';
+  }
+  return `<div class="lg-row click" data-act="edit-tx" data-id="${t.id}"><span class="lg-date${prev === t.date ? ' same' : ''}">${fday(t.date)}</span>
+    <div class="lg-con"><div class="t">${esc(title)}</div><div class="s">${t.demo ? 'Ejemplo · ' : ''}${sub}</div></div>
+    <span class="lg-val ${cls}">${amt}</span>${bal != null ? `<span class="lg-bal">${fmt(bal, cur)}</span>` : ''}</div>`;
+}
+function ledger(list, o = {}) {
+  const bals = o.acc ? runningBalances(o.acc) : null;
+  let html = '', prev = '', month = '';
+  for (const t of list) {
+    if (o.months && t.date.slice(0, 7) !== month) { month = t.date.slice(0, 7); prev = ''; html += `<div class="lg-sep">${monthLabel(month)}</div>`; }
+    html += ledgerRow(t, prev, o.acc, bals ? bals[t.id] : null); prev = t.date;
+  }
+  return `<section class="ledger${bals ? ' bal' : ''}">${o.title ? `<div class="ledger-title"><h2>${o.title}</h2>${o.more ? '<button class="btn sm" data-go="movimientos">Ver todos</button>' : ''}</div>` : ''}
+    ${list.length ? `<div class="lg-head" aria-hidden="true"><span class="lg-date">Fecha</span><span class="lg-con">Concepto</span><span class="lg-val">Valor</span>${bals ? '<span class="lg-bal">Saldo</span>' : ''}</div>${html}`
+      : `<div class="empty"><b>${o.emptyTitle || 'Aún no hay movimientos'}</b>${o.emptyText || 'Registra el primero con el botón +.'}</div>`}${o.foot || ''}</section>`;
 }
 function catOptions(sel, withAll) {
   const cats = Object.values(S.categories); const g = k => cats.filter(c => c.kind === k).sort((a, b) => a.name.localeCompare(b.name)).map(c => `<option value="${c.id}" ${sel === c.id ? 'selected' : ''}>${esc(c.name)}</option>`).join('');
@@ -400,8 +439,6 @@ const accOptions = (sel, withAll, all) => (withAll ? `<option value="">Todas</op
 function vMovimientos() {
   const list = filteredTxs(); const base = baseCur(); const f = UI.f;
   let inc = 0, exp = 0; for (const t of list) { if (t.type === 'income') inc += txAmountIn(t, base); if (t.type === 'expense') exp += txAmountIn(t, base); }
-  let html = '', last = '';
-  for (const t of list.slice(0, UI.txLimit)) { if (t.date !== last) { html += `<div class="day">${fdate(t.date)}</div>`; last = t.date; } html += txRow(t); }
   return modeNotice() + `<div class="card-head"><h1>Movimientos</h1><button class="btn primary" data-act="new-tx">Nuevo movimiento</button></div>
   <section class="card"><div class="filters">
     <label class="field wide"><span>Buscar</span><input id="f-q" data-filter="q" type="search" placeholder="Nota o categoría" value="${esc(f.q)}"></label>
@@ -413,7 +450,9 @@ function vMovimientos() {
     <div class="field" style="align-content:end"><button class="btn" data-act="clear-filters">Limpiar filtros</button></div>
   </div>
   <div class="stats" style="margin-top:14px"><div class="stat"><span class="label">Movimientos</span><span class="v">${list.length}</span></div><div class="stat"><span class="label">Ingresos</span><span class="v pos">${fmt(inc, base)}</span></div><div class="stat"><span class="label">Gastos</span><span class="v neg">${fmt(exp, base)}</span></div></div></section>
-  <section class="card">${list.length ? `<div class="rows">${html}</div>${list.length > UI.txLimit ? `<div class="btns" style="justify-content:center;margin-top:10px"><button class="btn" data-act="more-tx">Ver más</button></div>` : ''}` : `<div class="empty"><b>No hay movimientos con estos filtros</b>Cambia los filtros o registra uno nuevo con el botón +.</div>`}</section>`;
+  ${f.acc ? `<p class="small muted">Viendo solo ${esc(S.accounts[f.acc]?.name || 'una cuenta')}: la columna Saldo muestra lo que quedó en la cuenta después de cada movimiento.</p>` : ''}
+  ${ledger(list.slice(0, UI.txLimit), { acc: f.acc && S.accounts[f.acc] ? f.acc : null, months: true, emptyTitle: 'No hay movimientos con estos filtros', emptyText: 'Cambia los filtros o registra uno nuevo con el botón +.',
+    foot: list.length > UI.txLimit ? `<div class="btns" style="justify-content:center;padding:12px"><button class="btn" data-act="more-tx">Ver más</button></div>` : '' })}`;
 }
 function vInversiones() {
   const H = holdings(); const base = baseCur(); const usdcop = curRates().usdcop;
@@ -444,7 +483,7 @@ function seriesFor(key) {
 function vMercado() {
   const r = curRates(); const coins = coinList();
   const live = LIVE.status === 'ok' ? `<div class="notice info"><span class="dot" style="color:var(--pos)"></span><div class="grow"><b>Cotizaciones en vivo.</b> Se consultaron hace un momento.</div></div>`
-    : `<div class="notice info"><span class="dot" style="color:var(--accent)"></span><div class="grow"><b>Cotizaciones del ${r.updated ? fdate(r.updated.slice(0, 10)) : '—'} (${esc(r.source)}).</b> ${LIVE.status === 'pending' ? 'Consultando precios actuales…' : 'No se pudo conectar para actualizarlas. Revisa tu internet o escríbelas tú.'}</div><button class="btn sm" data-act="manual-rates">Editar tasas</button></div>`;
+    : `<div class="notice info"><span class="dot" style="color:var(--accent-text)"></span><div class="grow"><b>Cotizaciones del ${r.updated ? fdate(r.updated.slice(0, 10)) : '—'} (${esc(r.source)}).</b> ${LIVE.status === 'pending' ? 'Consultando precios actuales…' : 'No se pudo conectar para actualizarlas. Revisa tu internet o escríbelas tú.'}</div><button class="btn sm" data-act="manual-rates">Editar tasas</button></div>`;
   const pair = (key, label, val, q) => {
     const s = seriesFor(key); const days = UI.range[key]; const from = addDays(today(), -days); const ss = s.filter(p => p[0] >= from);
     const first = ss[0]?.[1], ch = first ? (val - first) / first * 100 : 0;
@@ -477,8 +516,8 @@ function vAhorro() {
   const planned = goals.reduce((s, g) => s + conv(goalPlan(g).monthly, g.currency, 'COP'), 0);
   const isCur = key === today().slice(0, 7);
   return modeNotice() + `<div class="card-head"><h1>Plan de ahorro</h1><button class="btn primary" data-act="new-goal">Nueva meta</button></div>
-  <section class="card"><h2>Metas</h2>${goals.length ? `<div class="grid g2">${goals.map(g => { const p = goalPlan(g); return `<div class="goal card" style="background:var(--surface-2);border:0">
-    <div class="card-head" style="margin:0"><h3><b>${esc(g.name)}</b>${g.demo ? '<span class="pill-demo">ejemplo</span>' : ''}</h3><button class="btn sm ghost" data-act="edit-goal" data-id="${g.id}">Editar</button></div>
+  <section class="card"><h2>Metas</h2>${goals.length ? `<div class="goals">${goals.map(g => { const p = goalPlan(g); return `<div class="goal">
+    <div class="card-head" style="margin:0"><h3>${esc(g.name)}${g.demo ? '<span class="pill-demo">ejemplo</span>' : ''}</h3><button class="btn sm ghost" data-act="edit-goal" data-id="${g.id}">Editar</button></div>
     <div class="kv"><span class="muted">Llevas</span><b>${fmt(p.saved, g.currency)} de ${fmt(g.target, g.currency)}</b></div>
     <div class="bar ${p.pct >= 100 ? 'done' : ''}" role="progressbar" aria-valuenow="${Math.round(p.pct)}" aria-valuemin="0" aria-valuemax="100"><i style="width:${p.pct}%"></i></div>
     <div class="kv"><span class="muted">${Math.round(p.pct)} % · fecha ${fdate(g.deadline)}</span><b>${p.left <= 0 ? '<span class="pos">¡Meta cumplida!</span>' : p.days < 0 ? '<span class="neg">Fecha vencida</span>' : `${fmt(p.monthly, g.currency)} al mes`}</b></div>
@@ -524,29 +563,29 @@ function storageCard() {
   return `<section class="card"><h2>Dónde se guarda todo</h2>${Store.configError ? `<div class="notice warn" style="margin-bottom:10px"><span class="dot"></span><div class="grow">${esc(Store.configError)}</div></div>` : ''}<p class="small muted" style="margin:0">Tus datos se guardan solo en este navegador, en este computador. Si borras los datos del navegador, se pierden: exporta un respaldo de vez en cuando. Para guardarlos en la nube, llena el archivo js/config.js con los datos de Supabase (mira el README). La app nunca pide claves de tus bancos: todo se escribe a mano.</p></section>`;
 }
 function vLogin() {
-  return `<section class="card" data-gate="login" style="max-width:440px;margin:24px auto 0;width:100%"><h1>Inicia sesión</h1>
+  return `<div class="gate" data-gate="login"><span class="brand-m">Mi <i>Plata</i></span><section class="card"><h1>Inicia sesión</h1>
     <p class="muted small">Tus datos se guardan en la nube con tu cuenta. Entra con el mismo correo desde el celular o el computador.</p>
     <form data-form="login" class="fgrid" novalidate>
       ${fld('Correo', '<input id="login-email" name="email" type="email" autocomplete="email" required>')}
       ${fld('Contraseña', '<input id="login-pass" name="password" type="password" autocomplete="current-password" minlength="6" required>', 'Mínimo 6 caracteres. Usa una contraseña nueva, no la de tu banco.')}
       <div class="btns"><button class="btn primary" type="submit">Entrar</button><button class="btn" type="button" data-act="signup">Crear cuenta</button></div>
       <p class="small" id="login-msg" role="status" style="margin:0"></p>
-    </form></section>`;
+    </form></section></div>`;
 }
 function vMigrate() {
   const local = Store.localSnapshot() || {}; const n = Object.values(local).reduce((s, c) => s + Object.keys(c || {}).length, 0);
   const acc = Object.values(local.accounts || {}); const real = acc.filter(a => !a.demo).length;
-  return `<section class="card" data-gate="migrate" style="max-width:560px;margin:24px auto 0;width:100%"><h1>Tu cuenta está lista</h1>
+  return `<div class="gate wide" data-gate="migrate"><span class="brand-m">Mi <i>Plata</i></span><section class="card"><h1>Tu cuenta está lista</h1>
     <p class="muted">Tu nube está vacía. ¿Cómo quieres empezar?</p>
-    <div class="morelist" style="grid-template-columns:1fr">
+    <div class="morelist">
       ${n ? `<button data-act="migrate-local"><span><b>Subir lo que tengo en este navegador</b><span>${n} datos guardados aquí (${acc.length} cuentas${real < acc.length ? `, ${acc.length - real} de ejemplo` : ''}).</span></span></button>` : ''}
       <button data-act="migrate-demo"><span><b>Empezar con datos de ejemplo</b><span>Para ver cómo funciona. Luego los borras con un botón.</span></span></button>
       <button data-act="migrate-empty"><span><b>Empezar vacío</b><span>Solo las categorías por defecto. Creas tus cuentas desde cero.</span></span></button>
-    </div></section>`;
+    </div></section></div>`;
 }
 function vMas() {
   const items = [['cuentas', 'Cuentas y billeteras', 'Bancos, Nequi, efectivo, cripto'], ['inversiones', 'Inversiones', 'Compras y ventas de cripto'], ['pagos', 'Pagos recurrentes', 'Suscripciones, arriendo, cuotas'], ['ajustes', 'Ajustes', 'Moneda, tema, categorías, respaldo']];
-  return `<h1>Más</h1><div class="morelist">${items.map(([k, t, s]) => `<button data-go="${k}"><span class="avatar" style="color:var(--accent)">${ico(k)}</span><span><b>${t}</b><span>${s}</span></span></button>`).join('')}</div>`;
+  return `<h1>Más</h1><div class="morelist">${items.map(([k, t, s]) => `<button data-go="${k}"><span class="avatar" style="color:var(--accent-text)">${ico(k)}</span><span><b>${t}</b><span>${s}</span></span></button>`).join('')}</div>`;
 }
 const VIEW_FN = { inicio: vInicio, cuentas: vCuentas, movimientos: vMovimientos, inversiones: vInversiones, mercado: vMercado, ahorro: vAhorro, pagos: vPagos, ajustes: vAjustes, mas: vMas };
 
@@ -557,13 +596,17 @@ const hexA = (h, a) => { const m = h.replace('#', ''); const n = parseInt(m.leng
 function baseOpts(cur, extra = {}) {
   const ink2 = cssv('--ink-2'), line = cssv('--line');
   return { responsive: true, maintainAspectRatio: false, animation: false, interaction: { mode: 'index', intersect: false },
-    plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => ' ' + fmt(c.parsed.y ?? c.parsed, cur) } } },
+    plugins: { legend: { display: false }, tooltip: { ...tipStyle(), callbacks: { label: c => ' ' + fmt(c.parsed.y ?? c.parsed, cur) } } },
     scales: { x: { grid: { display: false }, ticks: { color: ink2, maxTicksLimit: 6, maxRotation: 0 }, border: { color: line } },
       y: { grid: { display: false }, ticks: { color: ink2, maxTicksLimit: 5, callback: v => fmtShort(v, cur) }, border: { display: false } } }, ...extra };
 }
+/* Tooltip plano con los colores del tema (tinta sobre fondo invertido, sin esquinas redondas). */
+const tipStyle = () => ({ backgroundColor: cssv('--ink'), titleColor: cssv('--bg'), bodyColor: cssv('--bg'), cornerRadius: 2, padding: 10, displayColors: false,
+  titleFont: { family: cssv('--f-body'), weight: '600' }, bodyFont: { family: cssv('--f-mono') } });
 function mountCharts() {
   while (CH.length) CH.pop().destroy();
   if (!window.Chart) return;
+  Chart.defaults.font.family = cssv('--f-body'); Chart.defaults.font.size = 12;
   const base = baseCur(); const C = ['--c1', '--c2', '--c3', '--c4', '--c5', '--c6'].map(cssv);
   const nwC = $('#ch-nw');
   if (nwC) {
@@ -573,8 +616,8 @@ function mountCharts() {
     const pts = []; let m = addMonths(T.slice(0, 8) + '01', -11); if (m < first.slice(0, 8) + '01') m = first.slice(0, 8) + '01';
     while (m <= T) { const end = addDays(addMonths(m, 1), -1); if (end >= T) break; pts.push([end, MESES[+end.slice(5, 7) - 1] + ' ' + end.slice(2, 4)]); m = addMonths(m, 1); }
     pts.push([T, 'Hoy']);
-    const acc = cssv('--accent');
-    CH.push(new Chart(nwC, { type: 'line', data: { labels: pts.map(p => p[1]), datasets: [{ data: pts.map(p => netWorth(p[0] === T ? null : p[0])), borderColor: acc, backgroundColor: hexA(acc, .14), fill: true, tension: .3, pointRadius: 3, pointBackgroundColor: acc, borderWidth: 2.5 }] }, options: baseOpts(base) }));
+    const acc = cssv('--chart');
+    CH.push(new Chart(nwC, { type: 'line', data: { labels: pts.map(p => p[1]), datasets: [{ data: pts.map(p => netWorth(p[0] === T ? null : p[0])), borderColor: acc, backgroundColor: hexA(acc, .1), fill: true, tension: .25, pointRadius: 2.5, pointHoverRadius: 5, pointBackgroundColor: acc, borderWidth: 2 }] }, options: baseOpts(base) }));
   }
   const curC = $('#ch-cur');
   if (curC) {
@@ -582,7 +625,7 @@ function mountCharts() {
     for (const a of Object.values(S.accounts)) { const v = conv(b[a.id], a.currency, base); if (v > 0) g[a.currency] = (g[a.currency] || 0) + v; }
     const e = Object.entries(g).sort((x, y) => y[1] - x[1]); const tot = e.reduce((s, x) => s + x[1], 0);
     CH.push(new Chart(curC, { type: 'doughnut', data: { labels: e.map(x => x[0]), datasets: [{ data: e.map(x => x[1]), backgroundColor: e.map((_, i) => C[i % C.length]), borderColor: cssv('--surface'), borderWidth: 2 }] },
-      options: { responsive: true, maintainAspectRatio: false, animation: false, cutout: '62%', plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => ` ${c.label}: ${fmt(c.parsed, base)} (${num(c.parsed / tot * 100, 1)} %)` } } } } }));
+      options: { responsive: true, maintainAspectRatio: false, animation: false, cutout: '66%', plugins: { legend: { display: false }, tooltip: { ...tipStyle(), callbacks: { label: c => ` ${c.label}: ${fmt(c.parsed, base)} (${num(c.parsed / tot * 100, 1)} %)` } } } } }));
     $('#lg-cur').innerHTML = e.map((x, i) => `<span><i style="background:${C[i % C.length]}"></i>${x[0]} · ${num(x[1] / tot * 100, 1)} %</span>`).join('');
   }
   const tC = $('#ch-type');
@@ -590,8 +633,8 @@ function mountCharts() {
     const b = balances(); const g = {};
     for (const a of Object.values(S.accounts)) g[a.type] = (g[a.type] || 0) + conv(b[a.id], a.currency, base);
     const e = Object.entries(g).sort((x, y) => y[1] - x[1]);
-    CH.push(new Chart(tC, { type: 'bar', data: { labels: e.map(x => ACC_TYPES[x[0]]), datasets: [{ data: e.map(x => x[1]), backgroundColor: e.map((_, i) => C[i % C.length]), borderRadius: 6, barThickness: 22 }] },
-      options: baseOpts(base, { indexAxis: 'y', plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => ' ' + fmt(c.parsed.x, base) } } },
+    CH.push(new Chart(tC, { type: 'bar', data: { labels: e.map(x => ACC_TYPES[x[0]]), datasets: [{ data: e.map(x => x[1]), backgroundColor: e.map((_, i) => C[i % C.length]), borderRadius: 2, barThickness: 20 }] },
+      options: baseOpts(base, { indexAxis: 'y', plugins: { legend: { display: false }, tooltip: { ...tipStyle(), callbacks: { label: c => ' ' + fmt(c.parsed.x, base) } } },
         scales: { x: { grid: { display: false }, ticks: { color: cssv('--ink-2'), maxTicksLimit: 4, callback: v => fmtShort(v, base) }, border: { display: false } }, y: { grid: { display: false }, ticks: { color: cssv('--ink') }, border: { display: false } } } }) }));
   }
   for (const key of ['USDCOP', 'EURCOP', 'EURUSD', 'BTC']) {
@@ -616,6 +659,7 @@ function render() {
   renderNav(); renderThemeBtn();
   const gate = mode === 'login' || mode === 'migrate' || mode === 'loading';
   $('#rail').hidden = $('#tabbar').hidden = gate;
+  document.body.classList.toggle('is-gate', mode === 'login' || mode === 'migrate');
   $('#fab').hidden = gate || ['ajustes', 'mas'].includes(UI.view);
   if (mode === 'loading') return;
   if (mode === 'login' || mode === 'migrate') { while (CH.length) CH.pop().destroy(); if (!$('#main [data-gate="' + mode + '"]')) $('#main').innerHTML = mode === 'login' ? vLogin() : vMigrate(); return; }
@@ -625,6 +669,58 @@ function render() {
   mountCharts();
 }
 function go(v) { UI.view = v; render(); window.scrollTo(0, 0); }
+
+/* ---------- Bienvenida ----------
+ * Aparece cada vez que se abre la app, antes del inicio de sesión o de tus datos.
+ * Muestra las cotizaciones de hoy como líneas de libreta. No guarda nada: los datos
+ * se siguen cargando por detrás mientras la persona lee. */
+let WELCOME = true;
+const WR = { usdcop: null, eurusd: null, btc: null, date: null, live: false };
+function welcomeRows() {
+  const r = curRates(); const usdcop = WR.usdcop ?? r.usdcop, eurusd = WR.eurusd ?? r.eurusd, btc = WR.btc ?? coinUsd('BTC');
+  const cop = v => v == null || !isFinite(v) ? '—' : '$ ' + num(v, 2, 2);
+  return [['Dólar', 'USD/COP', cop(usdcop)], ['Euro', 'EUR/COP', cop(usdcop * eurusd)], ['Bitcoin', 'BTC/USD', btc == null ? '—' : fmt(btc, 'USD')]];
+}
+function welcomeNote() {
+  if (WR.live) return '<span class="live"></span>En vivo · consultado hace un momento';
+  const d = WR.date || curRates().updated; return `<span class="live off"></span>Último dato conocido${d ? ' · ' + fdate(d.slice(0, 10)) : ''}`;
+}
+function renderWelcome() {
+  const el = $('#welcome'); if (!WELCOME) return;
+  const T = today();
+  el.innerHTML = `<div class="wl">
+    <div><h1 class="wl-mark" id="wl-title">Mi <i>Plata</i></h1>
+      <p class="wl-lead">Tu plata, <b>clara y en orden</b>. Cuentas, gastos, cripto y metas en una sola libreta.</p></div>
+    <section class="ledger" aria-label="Cotizaciones de hoy">
+      <div class="lg-head" aria-hidden="true"><span class="lg-date">Fecha</span><span class="lg-con">Cotización</span><span class="lg-val">Valor</span></div>
+      ${welcomeRows().map(([n, p, v], i) => `<div class="lg-row" style="--i:${i}"><span class="lg-date">${fday(T)}</span><div class="lg-con"><div class="t">${n}</div><div class="s">${p}</div></div><span class="lg-val" data-wr="${i}">${v}</span></div>`).join('')}
+      <div class="wl-note" id="wl-note">${welcomeNote()}</div>
+    </section>
+    <div class="wl-go"><button class="btn primary lg" type="button" data-act="enter">Entrar</button>
+      <p>Todo lo escribes tú. Nunca te pedimos claves de tus bancos.</p></div>
+  </div>`;
+  el.querySelector('[data-act="enter"]').focus({ preventScroll: true });
+}
+/* Actualiza las cifras sin volver a dibujar (así la animación de "impresión" no se repite). */
+function refreshWelcome() {
+  if (!WELCOME) return;
+  welcomeRows().forEach(([, , v], i) => { const s = document.querySelector(`[data-wr="${i}"]`); if (s) s.textContent = v; });
+  const n = $('#wl-note'); if (n) n.innerHTML = welcomeNote();
+}
+async function welcomeLive() {
+  try {
+    const [f, c] = await Promise.all([getJSON('https://open.er-api.com/v6/latest/USD', 5000),
+      getJSON('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd', 5000).catch(() => null)]);
+    Object.assign(WR, { usdcop: f.rates.COP, eurusd: 1 / f.rates.EUR, btc: c?.bitcoin?.usd ?? null, live: true });
+  } catch (e) { }
+  refreshWelcome();
+}
+function enterApp() {
+  const el = $('#welcome'); if (!WELCOME) return;
+  const done = () => { WELCOME = false; el.hidden = true; el.innerHTML = ''; document.body.classList.remove('is-welcome'); render(); };
+  if (matchMedia('(prefers-reduced-motion: reduce)').matches) return done();
+  el.classList.add('out'); setTimeout(done, 240);
+}
 
 /* ---------- Hoja (formularios) ---------- */
 function openSheet(title, body, form) {
@@ -900,6 +996,7 @@ const ACTS = {
   'migrate-empty': async () => { mode = 'ready'; render(); await firstRun(false); render(); },
   'clear-filters': () => { UI.f = { from: '', to: '', acc: '', cat: '', type: '', q: '' }; render(); },
   'more-tx': () => { UI.txLimit += 150; render(); },
+  'enter': () => enterApp(),
   'close-sheet': () => closeSheet(), 'confirm-yes': () => { const f = CONFIRM; CONFIRM = null; closeSheet(); f && f(); },
 };
 document.addEventListener('click', e => {
@@ -928,13 +1025,15 @@ document.addEventListener('keydown', e => { if (e.key === 'Escape' && $('#sheet-
 /* Ocultar el dinero en Inicio: se recuerda en cada aparato (no se guarda en la nube). */
 function moneyHidden() { try { return localStorage.getItem('mp-hide') === '1'; } catch (e) { return false; } }
 function setMoneyHidden(v) { try { localStorage.setItem('mp-hide', v ? '1' : '0'); } catch (e) { } render(); }
-function themeMode() { try { return localStorage.getItem('mp-theme') || 'auto'; } catch (e) { return 'auto'; } }
+/* Sin preferencia guardada, la app abre en oscuro (carbón). */
+function themeMode() { try { return localStorage.getItem('mp-theme') || 'dark'; } catch (e) { return 'dark'; } }
 const HOST_THEME = document.documentElement.getAttribute('data-theme');
 function applyTheme() {
   const m = themeMode(); const el = document.documentElement;
   if (m !== 'auto') el.setAttribute('data-theme', m);
   else if (HOST_THEME) el.setAttribute('data-theme', HOST_THEME);
   else el.removeAttribute('data-theme');
+  const meta = $('meta[name="theme-color"]'); if (meta) meta.content = cssv('--bg');
 }
 function setTheme(m) { try { localStorage.setItem('mp-theme', m); } catch (e) { } applyTheme(); render(); }
 function renderThemeBtn() { const m = themeMode(); $('#theme-btn').innerHTML = `${ico(m === 'auto' ? 'auto' : m === 'dark' ? 'moon' : 'sun')}<span class="small">${m === 'auto' ? 'Auto' : m === 'dark' ? 'Oscuro' : 'Claro'}</span>`; }
@@ -1041,6 +1140,7 @@ async function loadSeedMarket() {
 /* ---------- Arranque ---------- */
 async function boot() {
   applyTheme();
+  renderWelcome(); welcomeLive();
   try { const h = location.hash.slice(1); if (VIEW_FN[h]) UI.view = h; } catch (e) { }
   render();
   try { await Store.init(); } catch (e) { Store.mode = 'local'; Store.configError = 'No se pudo conectar con Supabase: ' + e.message; }
@@ -1057,7 +1157,7 @@ async function loadData() {
     return toast(e.code === 'no_table' ? 'Falta crear la tabla en Supabase: corre el archivo supabase/schema.sql.' : 'No se pudieron cargar tus datos. Revisa tu internet y recarga.');
   }
   for (const c of COLS) { S[c] = {}; for (const [id, doc] of Object.entries(saved[c] || {})) S[c][id] = { ...doc, id }; }
-  await loadSeedMarket();
+  await loadSeedMarket(); refreshWelcome();
   initDone = true;
   if (Store.mode === 'cloud' && !S.settings.main) { mode = 'migrate'; render(); }
   else { mode = 'ready'; await firstRun(); render(); }

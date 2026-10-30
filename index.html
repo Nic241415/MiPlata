@@ -3,22 +3,26 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <title>Mis finanzas</title>
-  <meta name="description" content="Mis finanzas personales: cuentas, movimientos, cripto, metas y presupuesto.">
+  <title>Mi Plata</title>
+  <meta name="description" content="Mi Plata: tus cuentas, movimientos, cripto, metas y presupuesto en una sola libreta.">
+  <meta name="theme-color" content="#121418">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Instrument+Sans:wght@400;500;600&display=swap">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Red+Hat+Display:wght@600;700;800&family=Red+Hat+Mono:wght@400;500;600&family=Red+Hat+Text:wght@400;500;600;700&display=swap">
   <!-- Siempre la versión más reciente: el "?t=" cambia en cada visita, así el navegador
        no usa una copia vieja del diseño o del código después de publicar una actualización. -->
   <script>window.MP_T = Date.now(); document.write('<link rel="stylesheet" href="css/styles.css?t=' + MP_T + '">');</script>
   <!-- Librería de gráficos -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 </head>
-<body>
+<body class="is-welcome">
+<!-- Pantalla de bienvenida: aparece cada vez que se abre la app (la dibuja js/app.js) -->
+<div class="welcome" id="welcome" role="dialog" aria-modal="true" aria-labelledby="wl-title"></div>
 <div class="shell">
   <nav class="rail" id="rail" aria-label="Secciones"></nav>
-  <div style="min-width:0">
+  <div class="content">
     <header class="top">
+      <span class="brand-m" aria-hidden="true">Mi <i>Plata</i></span>
       <div class="top-actions">
         <label class="small muted" for="base-sel">Ver en</label>
         <select class="mini" id="base-sel" aria-label="Moneda base">
