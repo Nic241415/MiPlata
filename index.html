@@ -3,12 +3,14 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <title>Mi Plata</title>
-  <meta name="description" content="Mi Plata: tus cuentas, movimientos, cripto, metas y presupuesto en una sola libreta.">
-  <meta name="theme-color" content="#121418">
+  <title>MP</title>
+  <meta name="description" content="MP: tus cuentas, movimientos, cripto, metas y presupuesto en un solo lugar.">
+  <meta name="theme-color" content="#F3F4F6">
+  <!-- Que el navegador siempre pida esta página de nuevo (así no se queda con una versión vieja). -->
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Red+Hat+Display:wght@600;700;800&family=Red+Hat+Mono:wght@400;500;600&family=Red+Hat+Text:wght@400;500;600;700&display=swap">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap">
   <!-- Siempre la versión más reciente: el "?t=" cambia en cada visita, así el navegador
        no usa una copia vieja del diseño o del código después de publicar una actualización. -->
   <script>window.MP_T = Date.now(); document.write('<link rel="stylesheet" href="css/styles.css?t=' + MP_T + '">');</script>
@@ -19,20 +21,18 @@
 <!-- Pantalla de bienvenida: aparece cada vez que se abre la app (la dibuja js/app.js) -->
 <div class="welcome" id="welcome" role="dialog" aria-modal="true" aria-labelledby="wl-title"></div>
 <div class="shell">
-  <nav class="rail" id="rail" aria-label="Secciones"></nav>
-  <div class="content">
-    <header class="top">
-      <span class="brand-m" aria-hidden="true">Mi <i>Plata</i></span>
-      <div class="top-actions">
-        <label class="small muted" for="base-sel">Ver en</label>
-        <select class="mini" id="base-sel" aria-label="Moneda base">
-          <option value="COP">COP</option><option value="USD">USD</option><option value="EUR">EUR</option>
-        </select>
-        <button class="btn sm" id="theme-btn" type="button" aria-label="Cambiar tema"></button>
-      </div>
-    </header>
-    <main id="main"><div class="card empty"><b>Cargando tus datos…</b>Un momento.</div></main>
-  </div>
+  <header class="top">
+    <button class="brand" type="button" data-go="inicio" aria-label="MP, ir a Inicio">MP</button>
+    <nav class="rail" id="rail" aria-label="Secciones"></nav>
+    <div class="top-actions">
+      <label class="sr-only" for="base-sel">Ver en</label>
+      <select class="mini" id="base-sel" aria-label="Moneda base">
+        <option value="COP">COP</option><option value="USD">USD</option><option value="EUR">EUR</option>
+      </select>
+      <button class="icon-btn" id="theme-btn" type="button" aria-label="Cambiar tema"></button>
+    </div>
+  </header>
+  <main id="main"><div class="card empty"><b>Cargando tus datos…</b>Un momento.</div></main>
 </div>
 <nav class="tabbar" id="tabbar" aria-label="Secciones"></nav>
 <button class="fab" id="fab" type="button" aria-label="Agregar movimiento" data-act="new-tx"><svg class="ico" viewBox="0 0 24 24" style="width:26px;height:26px"><path d="M12 5v14M5 12h14"/></svg></button>

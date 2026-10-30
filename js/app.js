@@ -316,7 +316,7 @@ const VIEWS = [['inicio', 'Inicio'], ['cuentas', 'Cuentas'], ['movimientos', 'Mo
 const TABS = [['inicio', 'Inicio'], ['movimientos', 'Movimientos'], ['mercado', 'Mercado'], ['ahorro', 'Ahorro'], ['mas', 'Más']];
 function renderNav() {
   const cur = UI.view; const inMore = ['cuentas', 'inversiones', 'pagos', 'ajustes', 'mas'].includes(cur);
-  $('#rail').innerHTML = '<div class="brand">Mi <i>Plata</i></div>' + VIEWS.map(([k, l]) => `<button data-go="${k}" ${cur === k ? 'aria-current="page"' : ''}>${ico(k)}${l}</button>`).join('');
+  $('#rail').innerHTML = VIEWS.map(([k, l]) => `<button data-go="${k}" ${cur === k ? 'aria-current="page"' : ''}>${l}</button>`).join('');
   $('#tabbar').innerHTML = TABS.map(([k, l]) => `<button data-go="${k}" ${(cur === k || (k === 'mas' && inMore)) ? 'aria-current="page"' : ''}>${ico(k)}<span>${l}</span></button>`).join('');
   $('#base-sel').value = baseCur();
 }
@@ -343,34 +343,42 @@ function vInicio() {
   if (!Object.keys(S.accounts).length) return modeNotice() + `<div class="card empty"><b>Aún no tienes cuentas</b>Crea tu primera cuenta para ver tu patrimonio, o carga los datos de ejemplo desde Ajustes.<div class="btns" style="justify-content:center;margin-top:14px"><button class="btn primary" data-act="new-acc">Crear cuenta</button><button class="btn" data-act="load-demo">Cargar ejemplo</button></div></div>`;
   const nw = netWorth(), prev = netWorth(addDays(key + '-01', -1)); const d = nw - prev;
   const f = monthFlows(key); const demo = Object.values(S.accounts).some(a => a.demo);
-  const b = balances();
+  const b = balances(); const mes = MESES_L[+key.slice(5) - 1];
+  const qa = (act, icon, label, type) => `<button class="qa" data-act="${act}"${type ? ` data-type="${type}"` : ''}><span class="qa-ico">${ico(icon)}</span>${label}</button>`;
   return modeNotice() + `
   ${demo ? `<div class="notice warn"><span class="dot"></span><div class="grow"><b>Estás viendo datos de ejemplo.</b> Cuando quieras empezar con tus cifras reales, bórralos.</div><button class="btn sm" data-act="ask-clear-demo">Borrar ejemplo</button></div>` : ''}
   <section class="hero">
     <div class="hero-head"><span class="label">Patrimonio neto · ${base}</span>
       <button class="eye" data-act="toggle-hide" aria-pressed="${moneyHidden()}" aria-label="${moneyHidden() ? 'Mostrar el dinero' : 'Ocultar el dinero'}" title="${moneyHidden() ? 'Mostrar' : 'Ocultar'}">${ico(moneyHidden() ? 'eyeOff' : 'eye')}</button></div>
     <span class="big">${moneyHidden() ? `${FIAT[base].sym} ••••••` : fmt(nw, base)}</span>
-    <span class="sub">${moneyHidden() ? '' : `<b class="${d >= 0 ? 'pos' : 'neg'}">${fmt(d, base, { sign: true })}</b> desde el 1 de ${MESES_L[+key.slice(5) - 1]} · `}${esc(rateLine())}</span>
+    ${moneyHidden() ? '' : `<span class="delta ${d >= 0 ? 'pos' : 'neg'}">${fmt(d, base, { sign: true })} en ${mes}</span>`}
+    <div class="quick">${qa('new-tx', 'out', 'Gasto', 'expense')}${qa('new-tx', 'in', 'Ingreso', 'income')}${qa('new-tx', 'tr', 'Transferir', 'transfer')}${qa('new-goal', 'ahorro', 'Meta')}</div>
   </section>
   <div class="notices">${avisos()}</div>
+  <section><div class="sec-head"><h2>Tus cuentas</h2><button class="btn sm ghost" data-go="cuentas">Ver todas</button></div>
+    <div class="accs">${accList(false).map(a => accCard(a, b[a.id])).join('')}<button class="acc-card add" data-act="new-acc"><span class="avatar">${ico('cuentas')}</span><span class="acc-n">Nueva cuenta</span></button></div></section>
+  <div class="stats">
+    <div class="stat"><span class="label">Ingresos de ${mes}</span><span class="v pos">${fmt(f.inc, base)}</span></div>
+    <div class="stat"><span class="label">Gastos de ${mes}</span><span class="v neg">${fmt(f.exp, base)}</span></div>
+    <div class="stat"><span class="label">Te queda</span><span class="v ${f.save >= 0 ? '' : 'neg'}">${fmt(f.save, base)}</span></div>
+  </div>
   ${ledger(Object.values(S.txs).sort(byDateDesc).slice(0, 6), { title: 'Últimos movimientos', more: true })}
-  <section class="card"><div class="card-head"><h2>Resumen de ${MESES_L[+key.slice(5) - 1]}</h2><button class="btn sm" data-go="movimientos">Ver movimientos</button></div>
-    <div class="stats">
-      <div class="stat"><span class="label">Ingresos</span><span class="v pos">${fmt(f.inc, base)}</span></div>
-      <div class="stat"><span class="label">Gastos</span><span class="v neg">${fmt(f.exp, base)}</span></div>
-      <div class="stat"><span class="label">Ahorro</span><span class="v ${f.save >= 0 ? 'pos' : 'neg'}">${fmt(f.save, base)}</span></div>
-    </div></section>
   <section class="card"><div class="card-head"><h2>Evolución del patrimonio</h2><span class="small muted">Cierre de cada mes, en ${base}</span></div><div class="chart-box"><canvas id="ch-nw" aria-label="Gráfico de evolución del patrimonio"></canvas></div></section>
   <div class="grid g2">
     <section class="card"><h2>Por divisa</h2><div class="chart-box short"><canvas id="ch-cur" aria-label="Distribución por divisa"></canvas></div><div class="legend" id="lg-cur"></div></section>
     <section class="card"><h2>Por tipo de cuenta</h2><div class="chart-box short"><canvas id="ch-type" aria-label="Distribución por tipo de cuenta"></canvas></div></section>
   </div>
-  <section class="card"><div class="card-head"><h2>Tus cuentas</h2><button class="btn sm" data-go="cuentas">Administrar</button></div>
-    <div class="rows">${accList(false).map(a => accRow(a, b[a.id])).join('')}</div></section>`;
+  <p class="small muted center">${esc(rateLine())}</p>`;
+}
+/* Tarjeta redonda de cuenta para la franja de Inicio. */
+function accCard(a, bal) {
+  const c = accColor(a.color);
+  return `<button class="acc-card" data-act="edit-acc" data-id="${a.id}"><span class="avatar tint" style="--c:${esc(c)}">${ico(a.icon || a.type)}</span>
+    <span class="acc-n">${esc(a.name)}</span><b class="${bal < 0 ? 'neg' : ''}">${moneyHidden() ? '••••' : fmt(bal, a.currency)}</b></button>`;
 }
 function accRow(a, bal) {
-  const base = baseCur();
-  return `<div class="row click" data-act="edit-acc" data-id="${a.id}"><span class="avatar" style="color:${esc(accColor(a.color))}">${ico(a.icon || a.type)}</span>
+  const base = baseCur(); const c = accColor(a.color);
+  return `<div class="row click" data-act="edit-acc" data-id="${a.id}"><span class="avatar tint" style="--c:${esc(c)}">${ico(a.icon || a.type)}</span>
     <div class="main"><div class="t">${esc(a.name)}${a.demo ? '<span class="pill-demo">ejemplo</span>' : ''}</div><div class="s">${ACC_TYPES[a.type] || ''}${a.sub ? ' · ' + esc(a.sub) : ''}${a.archived ? ' · archivada' : ''}</div></div>
     <div class="r"><div class="amt ${bal < 0 ? 'neg' : ''}">${fmt(bal, a.currency)}</div>${a.currency !== base ? `<div class="s">≈ ${fmt(conv(bal, a.currency, base), base)}</div>` : ''}</div></div>`;
 }
@@ -403,8 +411,9 @@ function runningBalances(accId) {
   return out;
 }
 const fday = s => { const d = parseD(s); return `${d.getDate()} ${MESES[d.getMonth()]}`; };
-/* Una línea de libreta: fecha, concepto, valor y (si se ve una sola cuenta) el saldo que quedó. */
-function ledgerRow(t, prev, accId, bal) {
+const dayLabel = s => { const n = daysBetween(s, today()); return n === 0 ? 'Hoy' : n === 1 ? 'Ayer' : fdate(s); };
+/* Una fila de movimiento: ícono redondo, concepto, valor y (si se ve una sola cuenta) el saldo que quedó. */
+function ledgerRow(t, accId, bal) {
   const a = S.accounts[t.accountId], to = S.accounts[t.toAccountId]; let cur = a?.currency || 'COP';
   let title, sub, amt, cls = '';
   if (t.type === 'transfer') {
@@ -416,19 +425,20 @@ function ledgerRow(t, prev, accId, bal) {
     title = t.note || catName(t.categoryId); sub = `${esc(catName(t.categoryId))} · ${esc(a?.name || 'Cuenta borrada')}`;
     amt = fmt(t.type === 'income' ? t.amount : -t.amount, cur, { sign: true }); cls = t.type === 'income' ? 'pos' : 'neg';
   }
-  return `<div class="lg-row click" data-act="edit-tx" data-id="${t.id}"><span class="lg-date${prev === t.date ? ' same' : ''}">${fday(t.date)}</span>
-    <div class="lg-con"><div class="t">${esc(title)}</div><div class="s">${t.demo ? 'Ejemplo · ' : ''}${sub}</div></div>
-    <span class="lg-val ${cls}">${amt}</span>${bal != null ? `<span class="lg-bal">${fmt(bal, cur)}</span>` : ''}</div>`;
+  const icon = t.type === 'transfer' ? 'tr' : t.type === 'income' ? 'in' : 'out';
+  return `<div class="row click" data-act="edit-tx" data-id="${t.id}"><span class="avatar ${t.type}">${ico(icon)}</span>
+    <div class="main"><div class="t">${esc(title)}</div><div class="s">${t.demo ? 'Ejemplo · ' : ''}${sub}</div></div>
+    <div class="r"><div class="amt ${cls}">${amt}</div>${bal != null ? `<div class="s">Saldo ${fmt(bal, cur)}</div>` : ''}</div></div>`;
 }
 function ledger(list, o = {}) {
   const bals = o.acc ? runningBalances(o.acc) : null;
-  let html = '', prev = '', month = '';
+  let html = '', day = '';
   for (const t of list) {
-    if (o.months && t.date.slice(0, 7) !== month) { month = t.date.slice(0, 7); prev = ''; html += `<div class="lg-sep">${monthLabel(month)}</div>`; }
-    html += ledgerRow(t, prev, o.acc, bals ? bals[t.id] : null); prev = t.date;
+    if (t.date !== day) { day = t.date; html += `<div class="day">${dayLabel(day)}</div>`; }
+    html += ledgerRow(t, o.acc, bals ? bals[t.id] : null);
   }
-  return `<section class="ledger${bals ? ' bal' : ''}">${o.title ? `<div class="ledger-title"><h2>${o.title}</h2>${o.more ? '<button class="btn sm" data-go="movimientos">Ver todos</button>' : ''}</div>` : ''}
-    ${list.length ? `<div class="lg-head" aria-hidden="true"><span class="lg-date">Fecha</span><span class="lg-con">Concepto</span><span class="lg-val">Valor</span>${bals ? '<span class="lg-bal">Saldo</span>' : ''}</div>${html}`
+  return `<section class="card list">${o.title ? `<div class="card-head"><h2>${o.title}</h2>${o.more ? '<button class="btn sm ghost" data-go="movimientos">Ver todos</button>' : ''}</div>` : ''}
+    ${list.length ? `<div class="rows">${html}</div>`
       : `<div class="empty"><b>${o.emptyTitle || 'Aún no hay movimientos'}</b>${o.emptyText || 'Registra el primero con el botón +.'}</div>`}${o.foot || ''}</section>`;
 }
 function catOptions(sel, withAll) {
@@ -450,7 +460,7 @@ function vMovimientos() {
     <div class="field" style="align-content:end"><button class="btn" data-act="clear-filters">Limpiar filtros</button></div>
   </div>
   <div class="stats" style="margin-top:14px"><div class="stat"><span class="label">Movimientos</span><span class="v">${list.length}</span></div><div class="stat"><span class="label">Ingresos</span><span class="v pos">${fmt(inc, base)}</span></div><div class="stat"><span class="label">Gastos</span><span class="v neg">${fmt(exp, base)}</span></div></div></section>
-  ${f.acc ? `<p class="small muted">Viendo solo ${esc(S.accounts[f.acc]?.name || 'una cuenta')}: la columna Saldo muestra lo que quedó en la cuenta después de cada movimiento.</p>` : ''}
+  ${f.acc ? `<p class="small muted">Viendo solo ${esc(S.accounts[f.acc]?.name || 'una cuenta')}: el "Saldo" de cada fila es lo que quedó en la cuenta después de cada movimiento.</p>` : ''}
   ${ledger(list.slice(0, UI.txLimit), { acc: f.acc && S.accounts[f.acc] ? f.acc : null, months: true, emptyTitle: 'No hay movimientos con estos filtros', emptyText: 'Cambia los filtros o registra uno nuevo con el botón +.',
     foot: list.length > UI.txLimit ? `<div class="btns" style="justify-content:center;padding:12px"><button class="btn" data-act="more-tx">Ver más</button></div>` : '' })}`;
 }
@@ -517,10 +527,8 @@ function vAhorro() {
   const isCur = key === today().slice(0, 7);
   return modeNotice() + `<div class="card-head"><h1>Plan de ahorro</h1><button class="btn primary" data-act="new-goal">Nueva meta</button></div>
   <section class="card"><h2>Metas</h2>${goals.length ? `<div class="goals">${goals.map(g => { const p = goalPlan(g); return `<div class="goal">
-    <div class="card-head" style="margin:0"><h3>${esc(g.name)}${g.demo ? '<span class="pill-demo">ejemplo</span>' : ''}</h3><button class="btn sm ghost" data-act="edit-goal" data-id="${g.id}">Editar</button></div>
-    <div class="kv"><span class="muted">Llevas</span><b>${fmt(p.saved, g.currency)} de ${fmt(g.target, g.currency)}</b></div>
-    <div class="bar ${p.pct >= 100 ? 'done' : ''}" role="progressbar" aria-valuenow="${Math.round(p.pct)}" aria-valuemin="0" aria-valuemax="100"><i style="width:${p.pct}%"></i></div>
-    <div class="kv"><span class="muted">${Math.round(p.pct)} % · fecha ${fdate(g.deadline)}</span><b>${p.left <= 0 ? '<span class="pos">¡Meta cumplida!</span>' : p.days < 0 ? '<span class="neg">Fecha vencida</span>' : `${fmt(p.monthly, g.currency)} al mes`}</b></div>
+    <div class="goal-top">${ring(p.pct)}<div class="goal-name"><h3>${esc(g.name)}${g.demo ? '<span class="pill-demo">ejemplo</span>' : ''}</h3><span class="small muted">Llevas ${fmt(p.saved, g.currency)} de ${fmt(g.target, g.currency)}</span></div><button class="btn sm ghost" data-act="edit-goal" data-id="${g.id}">Editar</button></div>
+    <div class="kv"><span class="muted">Fecha ${fdate(g.deadline)}</span><b>${p.left <= 0 ? '<span class="pos">¡Meta cumplida!</span>' : p.days < 0 ? '<span class="neg">Fecha vencida</span>' : `${fmt(p.monthly, g.currency)} al mes`}</b></div>
     ${p.left > 0 && p.days >= 0 ? `<div class="small muted">Te faltan ${fmt(p.left, g.currency)} en ${p.months} ${p.months === 1 ? 'mes' : 'meses'}.</div>` : ''}
     <div class="btns"><button class="btn sm primary" data-act="contrib" data-id="${g.id}">Aportar</button></div></div>`; }).join('')}</div>`
     : `<div class="empty"><b>Aún no tienes metas</b>Ejemplo: "Viaje: 10.000.000 COP para diciembre". La app calcula cuánto ahorrar cada mes.</div>`}</section>
@@ -529,6 +537,12 @@ function vAhorro() {
     ${planned > 0 ? `<p class="small ${f.save >= planned ? 'muted' : 'neg'}" style="margin:10px 0 0">Tus metas piden ${fmt(planned, 'COP')} al mes. ${f.save >= planned ? 'Este mes te alcanza.' : `Este mes te faltan ${fmt(planned - f.save, 'COP')}.`}</p>` : ''}
     <div class="rows" style="margin-top:8px">${cats.length ? cats.sort((a, b) => (f.byCat[b] || 0) - (f.byCat[a] || 0)).map(c => { const sp = f.byCat[c] || 0, l = lim[c] || 0, over = l && sp > l; const w = l ? Math.min(100, sp / l * 100) : 0; return `<div class="row" style="display:grid;gap:6px"><div class="kv"><span><b>${esc(catName(c))}</b> ${over ? '<span class="chip neg">Te pasaste</span>' : l && sp > l * 0.85 ? '<span class="chip warn">Cerca del límite</span>' : ''}</span><b class="${over ? 'neg' : ''}">${fmt(sp, 'COP')}${l ? ` <span class="muted">/ ${fmt(l, 'COP')}</span>` : ' <span class="muted small">sin límite</span>'}</b></div>${l ? `<div class="bar ${over ? 'over' : ''}"><i style="width:${w}%"></i></div>` : ''}</div>`; }).join('') : `<div class="empty"><b>Sin gastos este mes</b>Define límites con "Editar límites".</div>`}</div>
     <p class="small muted">Los límites y montos de esta sección están en COP.</p></section>`;
+}
+/* Anillo de progreso de una meta (círculo SVG con el porcentaje en el centro). */
+function ring(pct) {
+  const r = 26, c = 2 * Math.PI * r, v = Math.max(0, Math.min(100, pct));
+  return `<div class="ring${v >= 100 ? ' done' : ''}" role="progressbar" aria-valuenow="${Math.round(v)}" aria-valuemin="0" aria-valuemax="100" aria-label="Progreso de la meta">
+    <svg viewBox="0 0 64 64" aria-hidden="true"><circle cx="32" cy="32" r="${r}"/><circle class="fill" cx="32" cy="32" r="${r}" stroke-dasharray="${c.toFixed(1)}" stroke-dashoffset="${(c * (1 - v / 100)).toFixed(1)}"/></svg><span>${Math.round(v)}%</span></div>`;
 }
 function vPagos() {
   const list = Object.values(S.recurring).sort((a, b) => a.next < b.next ? -1 : 1); const lim = addDays(today(), 7);
@@ -563,7 +577,7 @@ function storageCard() {
   return `<section class="card"><h2>Dónde se guarda todo</h2>${Store.configError ? `<div class="notice warn" style="margin-bottom:10px"><span class="dot"></span><div class="grow">${esc(Store.configError)}</div></div>` : ''}<p class="small muted" style="margin:0">Tus datos se guardan solo en este navegador, en este computador. Si borras los datos del navegador, se pierden: exporta un respaldo de vez en cuando. Para guardarlos en la nube, llena el archivo js/config.js con los datos de Supabase (mira el README). La app nunca pide claves de tus bancos: todo se escribe a mano.</p></section>`;
 }
 function vLogin() {
-  return `<div class="gate" data-gate="login"><span class="brand-m">Mi <i>Plata</i></span><section class="card"><h1>Inicia sesión</h1>
+  return `<div class="gate" data-gate="login"><span class="logo" aria-hidden="true">MP</span><section class="card"><h1>Inicia sesión</h1>
     <p class="muted small">Tus datos se guardan en la nube con tu cuenta. Entra con el mismo correo desde el celular o el computador.</p>
     <form data-form="login" class="fgrid" novalidate>
       ${fld('Correo', '<input id="login-email" name="email" type="email" autocomplete="email" required>')}
@@ -575,7 +589,7 @@ function vLogin() {
 function vMigrate() {
   const local = Store.localSnapshot() || {}; const n = Object.values(local).reduce((s, c) => s + Object.keys(c || {}).length, 0);
   const acc = Object.values(local.accounts || {}); const real = acc.filter(a => !a.demo).length;
-  return `<div class="gate wide" data-gate="migrate"><span class="brand-m">Mi <i>Plata</i></span><section class="card"><h1>Tu cuenta está lista</h1>
+  return `<div class="gate wide" data-gate="migrate"><span class="logo" aria-hidden="true">MP</span><section class="card"><h1>Tu cuenta está lista</h1>
     <p class="muted">Tu nube está vacía. ¿Cómo quieres empezar?</p>
     <div class="morelist">
       ${n ? `<button data-act="migrate-local"><span><b>Subir lo que tengo en este navegador</b><span>${n} datos guardados aquí (${acc.length} cuentas${real < acc.length ? `, ${acc.length - real} de ejemplo` : ''}).</span></span></button>` : ''}
@@ -617,7 +631,7 @@ function mountCharts() {
     while (m <= T) { const end = addDays(addMonths(m, 1), -1); if (end >= T) break; pts.push([end, MESES[+end.slice(5, 7) - 1] + ' ' + end.slice(2, 4)]); m = addMonths(m, 1); }
     pts.push([T, 'Hoy']);
     const acc = cssv('--chart');
-    CH.push(new Chart(nwC, { type: 'line', data: { labels: pts.map(p => p[1]), datasets: [{ data: pts.map(p => netWorth(p[0] === T ? null : p[0])), borderColor: acc, backgroundColor: hexA(acc, .1), fill: true, tension: .25, pointRadius: 2.5, pointHoverRadius: 5, pointBackgroundColor: acc, borderWidth: 2 }] }, options: baseOpts(base) }));
+    CH.push(new Chart(nwC, { type: 'line', data: { labels: pts.map(p => p[1]), datasets: [{ data: pts.map(p => netWorth(p[0] === T ? null : p[0])), borderColor: acc, backgroundColor: hexA(acc, .1), fill: true, tension: .35, pointRadius: 0, pointHoverRadius: 6, pointBackgroundColor: acc, borderWidth: 2 }] }, options: baseOpts(base) }));
   }
   const curC = $('#ch-cur');
   if (curC) {
@@ -625,7 +639,7 @@ function mountCharts() {
     for (const a of Object.values(S.accounts)) { const v = conv(b[a.id], a.currency, base); if (v > 0) g[a.currency] = (g[a.currency] || 0) + v; }
     const e = Object.entries(g).sort((x, y) => y[1] - x[1]); const tot = e.reduce((s, x) => s + x[1], 0);
     CH.push(new Chart(curC, { type: 'doughnut', data: { labels: e.map(x => x[0]), datasets: [{ data: e.map(x => x[1]), backgroundColor: e.map((_, i) => C[i % C.length]), borderColor: cssv('--surface'), borderWidth: 2 }] },
-      options: { responsive: true, maintainAspectRatio: false, animation: false, cutout: '66%', plugins: { legend: { display: false }, tooltip: { ...tipStyle(), callbacks: { label: c => ` ${c.label}: ${fmt(c.parsed, base)} (${num(c.parsed / tot * 100, 1)} %)` } } } } }));
+      options: { responsive: true, maintainAspectRatio: false, animation: false, cutout: '74%', plugins: { legend: { display: false }, tooltip: { ...tipStyle(), callbacks: { label: c => ` ${c.label}: ${fmt(c.parsed, base)} (${num(c.parsed / tot * 100, 1)} %)` } } } } }));
     $('#lg-cur').innerHTML = e.map((x, i) => `<span><i style="background:${C[i % C.length]}"></i>${x[0]} · ${num(x[1] / tot * 100, 1)} %</span>`).join('');
   }
   const tC = $('#ch-type');
@@ -633,7 +647,7 @@ function mountCharts() {
     const b = balances(); const g = {};
     for (const a of Object.values(S.accounts)) g[a.type] = (g[a.type] || 0) + conv(b[a.id], a.currency, base);
     const e = Object.entries(g).sort((x, y) => y[1] - x[1]);
-    CH.push(new Chart(tC, { type: 'bar', data: { labels: e.map(x => ACC_TYPES[x[0]]), datasets: [{ data: e.map(x => x[1]), backgroundColor: e.map((_, i) => C[i % C.length]), borderRadius: 2, barThickness: 20 }] },
+    CH.push(new Chart(tC, { type: 'bar', data: { labels: e.map(x => ACC_TYPES[x[0]]), datasets: [{ data: e.map(x => x[1]), backgroundColor: e.map((_, i) => C[i % C.length]), borderRadius: 999, borderSkipped: false, barThickness: 16 }] },
       options: baseOpts(base, { indexAxis: 'y', plugins: { legend: { display: false }, tooltip: { ...tipStyle(), callbacks: { label: c => ' ' + fmt(c.parsed.x, base) } } },
         scales: { x: { grid: { display: false }, ticks: { color: cssv('--ink-2'), maxTicksLimit: 4, callback: v => fmtShort(v, base) }, border: { display: false } }, y: { grid: { display: false }, ticks: { color: cssv('--ink') }, border: { display: false } } } }) }));
   }
@@ -672,8 +686,8 @@ function go(v) { UI.view = v; render(); window.scrollTo(0, 0); }
 
 /* ---------- Bienvenida ----------
  * Aparece cada vez que se abre la app, antes del inicio de sesión o de tus datos.
- * Muestra las cotizaciones de hoy como líneas de libreta. No guarda nada: los datos
- * se siguen cargando por detrás mientras la persona lee. */
+ * Muestra las cotizaciones de hoy. No guarda nada: los datos se siguen cargando
+ * por detrás mientras la persona lee. */
 let WELCOME = true;
 const WR = { usdcop: null, eurusd: null, btc: null, date: null, live: false };
 function welcomeRows() {
@@ -686,16 +700,22 @@ function welcomeNote() {
   const d = WR.date || curRates().updated; return `<span class="live off"></span>Último dato conocido${d ? ' · ' + fdate(d.slice(0, 10)) : ''}`;
 }
 function renderWelcome() {
-  const el = $('#welcome'); if (!WELCOME) return;
-  const T = today();
+  if (!WELCOME) return;
+  let el = $('#welcome');
+  if (!el) { // por si el navegador guardó un index.html viejo sin la bienvenida
+    el = document.createElement('div'); el.id = 'welcome'; el.className = 'welcome';
+    el.setAttribute('role', 'dialog'); el.setAttribute('aria-modal', 'true'); el.setAttribute('aria-labelledby', 'wl-title');
+    document.body.prepend(el);
+  }
+  document.body.classList.add('is-welcome'); el.hidden = false;
   el.innerHTML = `<div class="wl">
-    <div><h1 class="wl-mark" id="wl-title">Mi <i>Plata</i></h1>
-      <p class="wl-lead">Tu plata, <b>clara y en orden</b>. Cuentas, gastos, cripto y metas en una sola libreta.</p></div>
-    <section class="ledger" aria-label="Cotizaciones de hoy">
-      <div class="lg-head" aria-hidden="true"><span class="lg-date">Fecha</span><span class="lg-con">Cotización</span><span class="lg-val">Valor</span></div>
-      ${welcomeRows().map(([n, p, v], i) => `<div class="lg-row" style="--i:${i}"><span class="lg-date">${fday(T)}</span><div class="lg-con"><div class="t">${n}</div><div class="s">${p}</div></div><span class="lg-val" data-wr="${i}">${v}</span></div>`).join('')}
-      <div class="wl-note" id="wl-note">${welcomeNote()}</div>
-    </section>
+    <span class="wl-logo" aria-hidden="true">MP</span>
+    <div><h1 class="wl-title" id="wl-title">Tu dinero, simple.</h1>
+      <p class="wl-lead">Cuentas, gastos, cripto y metas en un solo lugar.</p></div>
+    <div class="wl-rates" aria-label="Cotizaciones de hoy">
+      ${welcomeRows().map(([n, p, v], i) => `<div class="wl-rate" style="--i:${i}"><span>${n}</span><b data-wr="${i}">${v}</b></div>`).join('')}
+    </div>
+    <p class="wl-note" id="wl-note">${welcomeNote()}</p>
     <div class="wl-go"><button class="btn primary lg" type="button" data-act="enter">Entrar</button>
       <p>Todo lo escribes tú. Nunca te pedimos claves de tus bancos.</p></div>
   </div>`;
@@ -922,7 +942,7 @@ const FORMS = {
 /* ---------- Acciones ---------- */
 const RESET_TEXT = 'BORRAR TODO';
 const ACTS = {
-  'new-tx': () => txForm(), 'edit-tx': id => txForm(S.txs[id]),
+  'new-tx': (_, el) => txForm(el?.dataset.type ? { type: el.dataset.type } : {}), 'edit-tx': id => txForm(S.txs[id]),
   'del-tx': id => askConfirm('¿Eliminar movimiento?', 'El saldo de la cuenta se recalcula sin este movimiento.', 'Eliminar', () => safe(() => del('txs', id), 'Movimiento eliminado')),
   'new-acc': () => accForm(), 'edit-acc': id => accForm(S.accounts[id]),
   'arch-acc': id => { const a = S.accounts[id]; closeSheet(); safe(() => put('accounts', id, { ...a, archived: !a.archived }), a.archived ? 'Cuenta activa otra vez' : 'Cuenta archivada'); },
@@ -1025,8 +1045,8 @@ document.addEventListener('keydown', e => { if (e.key === 'Escape' && $('#sheet-
 /* Ocultar el dinero en Inicio: se recuerda en cada aparato (no se guarda en la nube). */
 function moneyHidden() { try { return localStorage.getItem('mp-hide') === '1'; } catch (e) { return false; } }
 function setMoneyHidden(v) { try { localStorage.setItem('mp-hide', v ? '1' : '0'); } catch (e) { } render(); }
-/* Sin preferencia guardada, la app abre en oscuro (carbón). */
-function themeMode() { try { return localStorage.getItem('mp-theme') || 'dark'; } catch (e) { return 'dark'; } }
+/* Sin preferencia guardada, la app sigue el tema del sistema (claro u oscuro). */
+function themeMode() { try { return localStorage.getItem('mp-theme') || 'auto'; } catch (e) { return 'auto'; } }
 const HOST_THEME = document.documentElement.getAttribute('data-theme');
 function applyTheme() {
   const m = themeMode(); const el = document.documentElement;
@@ -1036,12 +1056,16 @@ function applyTheme() {
   const meta = $('meta[name="theme-color"]'); if (meta) meta.content = cssv('--bg');
 }
 function setTheme(m) { try { localStorage.setItem('mp-theme', m); } catch (e) { } applyTheme(); render(); }
-function renderThemeBtn() { const m = themeMode(); $('#theme-btn').innerHTML = `${ico(m === 'auto' ? 'auto' : m === 'dark' ? 'moon' : 'sun')}<span class="small">${m === 'auto' ? 'Auto' : m === 'dark' ? 'Oscuro' : 'Claro'}</span>`; }
+function renderThemeBtn() {
+  const m = themeMode(), name = m === 'auto' ? 'automático' : m === 'dark' ? 'oscuro' : 'claro'; const b = $('#theme-btn');
+  b.innerHTML = ico(m === 'auto' ? 'auto' : m === 'dark' ? 'moon' : 'sun'); b.title = `Tema ${name} (tocar para cambiar)`; b.setAttribute('aria-label', `Tema ${name}. Cambiar tema`);
+}
 $('#theme-btn').addEventListener('click', () => setTheme({ auto: 'light', light: 'dark', dark: 'auto' }[themeMode()]));
 matchMedia('(prefers-color-scheme: dark)').addEventListener?.('change', () => sched());
 
 /* ---------- Respaldo ---------- */
 async function exportData() {
+  // 'Mi Plata' es el nombre interno de los respaldos (la app ahora se llama MP): no cambiarlo, o los respaldos viejos no se podrían restaurar.
   const data = { app: 'Mi Plata', version: 1, exported: now() }; for (const c of COLS) data[c] = S[c];
   const json = JSON.stringify(data, null, 2); const name = `mi-plata-respaldo-${today()}.json`;
   try {

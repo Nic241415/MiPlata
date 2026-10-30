@@ -1,4 +1,6 @@
-# Mi Plata
+# MP
+
+(Antes se llamaba "Mi Plata".)
 
 App personal para manejar tu dinero: cuentas en varias divisas (COP, USD, EUR y cripto), movimientos, inversiones, cotizaciones, metas de ahorro, presupuesto y pagos recurrentes.
 

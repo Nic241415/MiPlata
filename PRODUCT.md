@@ -12,7 +12,7 @@ Cualquier persona hispanohablante (principalmente en Colombia) que quiere llevar
 
 ## Product Purpose
 
-Mi Plata reúne en un solo lugar el dinero de una persona: saldos de bancos, billeteras (Nequi, Wise), efectivo y cripto, convertidos a una moneda base (COP, USD o EUR). Registra movimientos, inversiones en cripto, metas de ahorro con plan mensual, presupuesto por categoría, pagos recurrentes y alertas de precio. Éxito: la persona sabe en segundos cuánto tiene, cuánto gastó este mes y qué pagos vienen.
+MP reúne en un solo lugar el dinero de una persona: saldos de bancos, billeteras (Nequi, Wise), efectivo y cripto, convertidos a una moneda base (COP, USD o EUR). Registra movimientos, inversiones en cripto, metas de ahorro con plan mensual, presupuesto por categoría, pagos recurrentes y alertas de precio. Éxito: la persona sabe en segundos cuánto tiene, cuánto gastó este mes y qué pagos vienen.
 
 ## Positioning
 
@@ -30,15 +30,15 @@ Todo se escribe a mano: la app nunca pide ni guarda claves de bancos. Maneja pes
 - HTML + CSS + JavaScript puro, sin frameworks ni build; publicada en GitHub Pages tal cual.
 - Interfaz 100 % en español; números con formato colombiano (1.234.567,89) vía fmt() y parseNum().
 - index.html carga CSS/JS con "?t=Date.now()" para evitar caché; se mantiene.
-- Tema claro y oscuro (automático, claro, oscuro); el oscuro en grises carbón.
+- Tema claro y oscuro (automático por defecto, claro, oscuro); el oscuro en grises carbón.
 - Verde = ingresos/ganancias; rojo = gastos/pérdidas.
 - Interfaz de storage.js fija: init, loadAll, put, del, clearAll, signIn, signUp, signOut.
 - Pendiente: recuperar contraseña olvidada no existe en la app.
 
 ## Brand Commitments
 
-- Nombre: Mi Plata.
-- Diseño plano y minimalista: sin burbujas ni sombras.
+- Nombre: MP (antes "Mi Plata"; los respaldos guardan el identificador interno "Mi Plata" por compatibilidad).
+- Diseño minimalista, circular y redondeado (pedido del dueño), sin sombras, con tema claro y oscuro.
 - Paleta sobria por preferencia del dueño: grises, negros, blancos y azules oscuros (verde y rojo solo para ingresos/gastos).
 - Tono cercano, claro y en tuteo ("Toca", "Revisa tu correo").
 
