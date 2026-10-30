@@ -18,7 +18,11 @@ const FIAT = { COP: { sym: '$', name: 'Peso colombiano' }, USD: { sym: 'US$', na
 const DEFAULT_COINS = { BTC: 'Bitcoin', ETH: 'Ethereum', USDT: 'Tether', SOL: 'Solana', BNB: 'BNB' };
 const STABLE = new Set(['USDT', 'USDC', 'DAI']);
 /* Último dato conocido, por si la base de datos aún no tiene cotizaciones. */
-const FALLBACK = { usdcop: 3174.79, eurusd: 1.1228, date: '2026-10-21', coins: { BTC: 84705, ETH: 2496.16, USDT: 0.9993, SOL: 108.12, BNB: 749.34 } };
+const FALLBACK = { usdcop: 3174.79, eurusd: 1.1228, date: '2026-10-21', coins: { BTC: 84705, ETH: 2496.16, USDT: 0.9993, SOL: 108.12, BNB: 749.34 }, fut: { SP500: 7614, NASDAQ: 28534 } };
+/* Futuros de índices de EE. UU., en dólares. Precio actual: TradingView (futuros E-mini de la CME).
+ * Historial: CoinGecko, con los tokens que siguen a los ETF SPY y QQQ, escalado al precio del futuro
+ * (la forma de la curva es la misma; el nivel de días pasados es aproximado). */
+const FUTURES = { SP500: { name: 'S&P 500', full: 'Futuro E-mini S&P 500', tv: 'CME_MINI:ES1!', cg: 'sp500-xstock' }, NASDAQ: { name: 'Nasdaq 100', full: 'Futuro E-mini Nasdaq 100', tv: 'CME_MINI:NQ1!', cg: 'nasdaq-xstock' } };
 
 function group(intStr) { return intStr.replace(/\B(?=(\d{3})+(?!\d))/g, '.'); }
 function num(v, maxD, minD = 0) {
@@ -64,7 +68,7 @@ const UI = { view: 'inicio', range: { USDCOP: 30, EURCOP: 30, EURUSD: 30, BTC: 3
 /* Movimientos: se ven 15 al entrar y "Cargar más" suma 25. */
 const TX_FIRST = 15, TX_MORE = 25;
 let mode = 'loading', initDone = false;
-const LIVE = { status: 'pending', fx: null, coins: null, updated: null };
+const LIVE = { status: 'pending', fx: null, coins: null, fut: null, updated: null };
 const baseCur = () => S.settings.main?.base || 'COP';
 
 /* ---------- Cotizaciones y conversión ---------- */
@@ -84,7 +88,14 @@ function fxAt(date) {
   let p = pts[0]; for (const x of pts) { if (x[0] <= date) p = x; else break; }
   return { usdcop: p[1], eurusd: p[2] };
 }
+const histAt = (hist, date) => { let p = hist[0]; for (const x of hist) { if (x[0] <= date) p = x; else break; } return p[1]; };
+function futUsd(sym, date) {
+  const f = S.market.futures?.items?.[sym];
+  if (date && f?.hist?.length && date < f.hist[f.hist.length - 1][0]) return histAt(f.hist, date);
+  return LIVE.fut?.[sym]?.usd ?? f?.usd ?? FALLBACK.fut[sym];
+}
 function coinUsd(sym, date) {
+  if (FUTURES[sym]) return futUsd(sym, date);
   const auto = S.market.crypto?.coins?.[sym];
   if (date && auto?.hist?.length && date < auto.hist[auto.hist.length - 1][0]) {
     let p = auto.hist[0]; for (const x of auto.hist) { if (x[0] <= date) p = x; else break; } return p[1];
@@ -95,7 +106,13 @@ function coinUsd(sym, date) {
     if (v != null && (!best || (u || '') > (best[1] || ''))) best = [v, u];
   return best ? best[0] : null;
 }
-function coinCh24(sym) { return LIVE.coins?.[sym]?.ch24 ?? S.market.crypto?.coins?.[sym]?.ch24 ?? null; }
+function coinCh24(sym) {
+  if (FUTURES[sym]) return LIVE.fut?.[sym]?.ch24 ?? S.market.futures?.items?.[sym]?.ch24 ?? null;
+  return LIVE.coins?.[sym]?.ch24 ?? S.market.crypto?.coins?.[sym]?.ch24 ?? null;
+}
+/* Todo lo que se puede registrar en Inversiones: cripto y futuros. */
+const assetName = k => FUTURES[k]?.name || coinList()[k] || k;
+const fmtQty = (v, k) => FUTURES[k] ? `${num(v, 4)} unid.` : fmt(v, k);
 function usdPer(cur, date) {
   if (cur === 'USD') return 1;
   const r = fxAt(date);
@@ -119,7 +136,7 @@ function pairValue(pair) {
   const u = coinUsd(a); if (u == null) return null;
   return b === 'COP' ? u * r.usdcop : u;
 }
-function pairOptions() { const o = ['USD/COP', 'EUR/COP', 'EUR/USD']; for (const k of Object.keys(coinList())) o.push(`${k}/USD`, `${k}/COP`); return o; }
+function pairOptions() { const o = ['USD/COP', 'EUR/COP', 'EUR/USD', ...Object.keys(FUTURES).map(k => `${k}/USD`)]; for (const k of Object.keys(coinList())) o.push(`${k}/USD`, `${k}/COP`); return o; }
 
 /* ---------- Cálculos ---------- */
 const accList = (all = true) => Object.values(S.accounts).filter(a => all || !a.archived).sort((a, b) => (a.order ?? 0) - (b.order ?? 0) || a.name.localeCompare(b.name));
@@ -134,6 +151,19 @@ function balances(upto) {
     else if (t.type === 'transfer') { if (t.accountId in b) b[t.accountId] -= t.amount; if (t.toAccountId in b) b[t.toAccountId] += (t.toAmount ?? t.amount); }
   }
   return b;
+}
+/* Subgrupos: dinero apartado dentro de una cuenta (ej. "Bicicleta" en Bancolombia). Se guardan en la misma
+ * cuenta (a.subs) y cada movimiento puede llevar subId (y toSubId en transferencias). Lo que no está en
+ * ningún subgrupo es el dinero "libre" de la cuenta. */
+const subList = a => Object.entries(a?.subs || {}).map(([id, s]) => ({ ...s, id })).sort((x, y) => x.name.localeCompare(y.name));
+const subName = (a, sid) => a?.subs?.[sid]?.name || '';
+function subBalances(a) {
+  const out = {}; for (const s of subList(a)) out[s.id] = +s.initial || 0;
+  for (const t of Object.values(S.txs)) {
+    if (t.accountId === a.id && t.subId in out) out[t.subId] += t.type === 'income' ? t.amount : -t.amount;
+    if (t.type === 'transfer' && t.toAccountId === a.id && t.toSubId in out) out[t.toSubId] += (t.toAmount ?? t.amount);
+  }
+  return out;
 }
 function netWorth(upto) { const b = balances(upto), base = baseCur(); let s = 0; for (const a of Object.values(S.accounts)) s += conv(b[a.id], a.currency, base, upto); return s; }
 function txAmountIn(t, cur) { const a = S.accounts[t.accountId]; return conv(t.amount, a?.currency || 'COP', cur, t.date); }
@@ -223,6 +253,7 @@ function demoData() {
   A('d-wise', 'Wise', 'wallet', '', 'USD', 900, '#1E3560', 'wallet', 4);
   A('d-binance', 'Binance', 'crypto', '', 'USDT', 650, '#6E7A8A', 'crypto', 5);
   A('d-ledger', 'Billetera BTC', 'crypto', '', 'BTC', 0.01, '#A9B2BE', 'crypto', 6);
+  out[0][3].subs = { 'd-bici': { name: 'Bicicleta', initial: 800000 } };
   const tx = (date, type, amount, accountId, categoryId, note, extra = {}) => { if (date <= T) out.push(['put', 'txs', 'd-' + uid(), { date, type, amount, accountId, categoryId, note, ...extra, demo: true }]); };
   for (let m = 0; m < 6; m++) {
     const ms = addMonths(start, m); const d = n => ms.slice(0, 8) + pad(n);
@@ -248,6 +279,7 @@ function demoData() {
   const tr = (date, asset, side, qty, platform) => out.push(['put', 'trades', 'd-' + uid(), { date, asset, side, qty, price: Math.round((coinUsd(asset, date) ?? FALLBACK.coins[asset]) * 100) / 100, priceCur: 'USD', platform, demo: true }]);
   tr(addDays(start, 10), 'BTC', 'buy', 0.008, 'Binance'); tr(addDays(start, 70), 'BTC', 'buy', 0.005, 'Binance');
   tr(addDays(start, 40), 'ETH', 'buy', 0.4, 'MetaMask'); tr(addDays(T, -25), 'BTC', 'sell', 0.003, 'Binance');
+  tr(addDays(start, 20), 'SP500', 'buy', 0.2, 'Interactive Brokers');
   const y = T.slice(0, 4);
   const G = (id, name, target, currency, deadline) => out.push(['put', 'goals', id, { name, target, currency, deadline, demo: true }]);
   G('d-viaje', 'Viaje a Cartagena', 10000000, 'COP', `${y}-12-15`);
@@ -305,7 +337,7 @@ const P = {
   eyeOff: 'M3 3l18 18M10.6 5.1A10 10 0 0 1 12 5c6.4 0 10 7 10 7a17 17 0 0 1-3.2 4.2M6.6 6.6C3.8 8.4 2 12 2 12s3.6 7 10 7a9.6 9.6 0 0 0 5.4-1.6M9.9 9.9a3 3 0 0 0 4.2 4.2',
   auto: 'M12 21a9 9 0 1 0 0-18v18z M12 3a9 9 0 0 1 0 18',
   in: 'M12 19V5M5 12l7 7 7-7', out: 'M12 5v14M5 12l7-7 7 7', tr: 'M7 4L3 8l4 4M3 8h14M17 20l4-4-4-4M21 16H7',
-  plus: 'M12 5v14M5 12h14', minus: 'M5 12h14',
+  plus: 'M12 5v14M5 12h14', minus: 'M5 12h14', refresh: 'M20 11a8 8 0 1 0-2.3 5.7M20 4v7h-7', tag: 'M3 12V4h8l10 10-8 8zM7.5 7.5h.01',
   search: 'M11 18a7 7 0 1 0 0-14 7 7 0 0 0 0 14zM20 20l-4.2-4.2', filter: 'M4 6h16M7 12h10M10 18h4',
 };
 const ico = (n, cls = 'ico') => `<svg class="${cls}" viewBox="0 0 24 24" aria-hidden="true"><path d="${P[n] || P.wallet}"/></svg>`;
@@ -343,35 +375,22 @@ function fmtPair(pair, v) { const q = pair.split('/')[1]; return fmt(v, q); }
 function rateLine() { const r = curRates(); return `Tasas: USD/COP ${num(r.usdcop, 2)} · EUR/COP ${num(r.usdcop * r.eurusd, 2)} · actualizadas ${r.updated ? fdate(r.updated.slice(0, 10)) : '—'} (${r.source})`; }
 
 function vInicio() {
-  const base = baseCur(), T = today(), key = T.slice(0, 7);
-  if (!Object.keys(S.accounts).length) return modeNotice() + `<div class="card empty"><b>Aún no tienes cuentas</b>Crea tu primera cuenta para ver tu patrimonio, o carga los datos de ejemplo desde Ajustes.<div class="btns" style="justify-content:center;margin-top:14px"><button class="btn primary" data-act="new-acc">Crear cuenta</button><button class="btn" data-act="load-demo">Cargar ejemplo</button></div></div>`;
-  const nw = netWorth(), prev = netWorth(addDays(key + '-01', -1)); const d = nw - prev;
-  const f = monthFlows(key); const demo = Object.values(S.accounts).some(a => a.demo);
-  const b = balances(); const mes = MESES_L[+key.slice(5) - 1];
-  const qa = (act, icon, label, type) => `<button class="qa" data-act="${act}"${type ? ` data-type="${type}"` : ''}><span class="qa-ico">${ico(icon)}</span>${label}</button>`;
+  const base = baseCur();
+  const accs = accList(false); const nw = netWorth();
+  const demo = Object.values(S.accounts).some(a => a.demo); const b = balances();
+  // Botones sin color, de la paleta de la app. Sin cuentas, llevan a crear una (txForm lo hace solo).
+  const qa = (icon, label, type) => `<button class="mv-add plain" data-act="new-tx" data-type="${type}"><span class="mv-ico">${ico(icon)}</span>${label}</button>`;
   return modeNotice() + `
   ${demo ? `<div class="notice warn"><span class="dot"></span><div class="grow"><b>Estás viendo datos de ejemplo.</b> Cuando quieras empezar con tus cifras reales, bórralos.</div><button class="btn sm" data-act="ask-clear-demo">Borrar ejemplo</button></div>` : ''}
   <section class="hero">
     <div class="hero-head"><span class="label">Patrimonio neto · ${base}</span>
       <button class="eye" data-act="toggle-hide" aria-pressed="${moneyHidden()}" aria-label="${moneyHidden() ? 'Mostrar el dinero' : 'Ocultar el dinero'}" title="${moneyHidden() ? 'Mostrar' : 'Ocultar'}">${ico(moneyHidden() ? 'eyeOff' : 'eye')}</button></div>
     <span class="big">${moneyHidden() ? `${FIAT[base].sym} ••••••` : fmt(nw, base)}</span>
-    ${moneyHidden() ? '' : `<span class="delta ${d >= 0 ? 'pos' : 'neg'}">${fmt(d, base, { sign: true })} en ${mes}</span>`}
-    <div class="quick">${qa('new-tx', 'out', 'Gasto', 'expense')}${qa('new-tx', 'in', 'Ingreso', 'income')}${qa('new-tx', 'tr', 'Transferir', 'transfer')}${qa('new-goal', 'ahorro', 'Meta')}</div>
+    <div class="hero-acts">${qa('minus', 'Gasto', 'expense')}${qa('plus', 'Ingreso', 'income')}${qa('tr', 'Transferencia', 'transfer')}</div>
   </section>
   <div class="notices">${avisos()}</div>
-  <section><div class="sec-head"><h2>Tus cuentas</h2><button class="btn sm ghost" data-go="cuentas">Ver todas</button></div>
-    <div class="accs">${accList(false).map(a => accCard(a, b[a.id])).join('')}<button class="acc-card add" data-act="new-acc"><span class="avatar">${ico('cuentas')}</span><span class="acc-n">Nueva cuenta</span></button></div></section>
-  <div class="stats">
-    <div class="stat"><span class="label">Ingresos de ${mes}</span><span class="v pos">${fmt(f.inc, base)}</span></div>
-    <div class="stat"><span class="label">Gastos de ${mes}</span><span class="v neg">${fmt(f.exp, base)}</span></div>
-    <div class="stat"><span class="label">Te queda</span><span class="v ${f.save >= 0 ? '' : 'neg'}">${fmt(f.save, base)}</span></div>
-  </div>
-  ${ledger(Object.values(S.txs).sort(byDateDesc).slice(0, 6), { title: 'Últimos movimientos', more: true })}
-  <section class="card"><div class="card-head"><h2>Evolución del patrimonio</h2><span class="small muted">Cierre de cada mes, en ${base}</span></div><div class="chart-box"><canvas id="ch-nw" aria-label="Gráfico de evolución del patrimonio"></canvas></div></section>
-  <div class="grid g2">
-    <section class="card"><h2>Por divisa</h2><div class="chart-box short"><canvas id="ch-cur" aria-label="Distribución por divisa"></canvas></div><div class="legend" id="lg-cur"></div></section>
-    <section class="card"><h2>Por tipo de cuenta</h2><div class="chart-box short"><canvas id="ch-type" aria-label="Distribución por tipo de cuenta"></canvas></div></section>
-  </div>
+  <section><div class="sec-head"><h2>Tus cuentas</h2>${accs.length ? '<button class="btn sm ghost" data-go="cuentas">Ver todas</button>' : ''}</div>
+    <div class="accs">${accs.map(a => accCard(a, b[a.id])).join('')}<button class="acc-card add" data-act="new-acc"><span class="avatar">${ico('cuentas')}</span><span class="acc-n">Nueva cuenta</span></button></div></section>
   <p class="small muted center">${esc(rateLine())}</p>`;
 }
 /* Tarjeta redonda de cuenta para la franja de Inicio. */
@@ -386,13 +405,20 @@ function accRow(a, bal) {
     <div class="main"><div class="t">${esc(a.name)}${a.demo ? '<span class="pill-demo">ejemplo</span>' : ''}</div><div class="s">${ACC_TYPES[a.type] || ''}${a.sub ? ' · ' + esc(a.sub) : ''}${a.archived ? ' · archivada' : ''}</div></div>
     <div class="r"><div class="amt ${bal < 0 ? 'neg' : ''}">${fmt(bal, a.currency)}</div>${a.currency !== base ? `<div class="s">≈ ${fmt(conv(bal, a.currency, base), base)}</div>` : ''}</div></div>`;
 }
+/* Subgrupos de una cuenta, debajo de ella, con lo que queda libre al final. */
+function subRows(a, bal) {
+  const subs = subList(a); if (!subs.length) return '';
+  const sb = subBalances(a); const free = bal - subs.reduce((s, x) => s + sb[x.id], 0);
+  return `<div class="subs">${subs.map(s => `<div class="row click sub" data-act="edit-sub" data-id="${a.id}" data-sid="${s.id}"><div class="main"><div class="t">${esc(s.name)}</div></div><div class="amt ${sb[s.id] < 0 ? 'neg' : ''}">${fmt(sb[s.id], a.currency)}</div></div>`).join('')}
+    <div class="row sub free"><div class="main"><div class="t">Libre</div></div><div class="amt ${free < 0 ? 'neg' : ''}">${fmt(free, a.currency)}</div></div></div>`;
+}
 function vCuentas() {
   const b = balances(); const list = accList(UI.showArchived); const base = baseCur();
   const groups = Object.keys(ACC_TYPES).map(t => [t, list.filter(a => a.type === t)]).filter(([, l]) => l.length);
-  return modeNotice() + `<div class="card-head"><h1>Cuentas y billeteras</h1><div class="btns"><button class="btn" data-act="toggle-arch">${UI.showArchived ? 'Ocultar archivadas' : 'Ver archivadas'}</button><button class="btn primary" data-act="new-acc">Nueva cuenta</button></div></div>
-  ${groups.length ? groups.map(([t, l]) => `<section class="card"><div class="card-head"><h2>${ACC_TYPES[t]}</h2><span class="small muted num">${fmt(l.reduce((s, a) => s + conv(b[a.id], a.currency, base), 0), base)}</span></div><div class="rows">${l.map(a => accRow(a, b[a.id])).join('')}</div></section>`).join('')
+  return modeNotice() + `<div class="card-head"><h1>Cuentas y billeteras</h1><div class="btns"><button class="btn" data-act="toggle-arch">${UI.showArchived ? 'Ocultar archivadas' : 'Ver archivadas'}</button><button class="btn" data-act="new-sub">Nuevo subgrupo</button><button class="btn primary" data-act="new-acc">Nueva cuenta</button></div></div>
+  ${groups.length ? groups.map(([t, l]) => `<section class="card"><div class="card-head"><h2>${ACC_TYPES[t]}</h2><span class="small muted num">${fmt(l.reduce((s, a) => s + conv(b[a.id], a.currency, base), 0), base)}</span></div><div class="rows">${l.map(a => accRow(a, b[a.id]) + subRows(a, b[a.id])).join('')}</div></section>`).join('')
     : `<div class="card empty"><b>No hay cuentas</b>Toca "Nueva cuenta" para crear la primera: tu banco, Nequi, el efectivo o tu billetera cripto.</div>`}
-  <p class="small muted">El saldo de cada cuenta es su saldo inicial más los movimientos registrados. Toca una cuenta para editarla, archivarla o eliminarla.</p>`;
+  <p class="small muted">El saldo de cada cuenta es su saldo inicial más los movimientos registrados. Con un subgrupo apartas parte de ese dinero para algo (ej. "Bicicleta" en Bancolombia); lo demás queda libre. Toca una cuenta o un subgrupo para editarlo.</p>`;
 }
 const byDateDesc = (a, b) => a.date === b.date ? ((b.created || '') > (a.created || '') ? 1 : -1) : (a.date < b.date ? 1 : -1);
 function filteredTxs() {
@@ -425,12 +451,14 @@ function ledgerRow(t, accId, bal) {
   const a = S.accounts[t.accountId], to = S.accounts[t.toAccountId]; let cur = a?.currency || 'COP';
   let title, sub, amt, cls = '';
   if (t.type === 'transfer') {
-    title = t.note || 'Transferencia'; sub = `${esc(a?.name || '¿?')} → ${esc(to?.name || '¿?')}`;
+    const s1 = subName(a, t.subId), s2 = subName(to, t.toSubId);
+    title = t.note || 'Transferencia'; sub = `${esc(a?.name || '¿?')}${s1 ? ' · ' + esc(s1) : ''} → ${esc(to?.name || '¿?')}${s2 ? ' · ' + esc(s2) : ''}`;
     if (accId && t.toAccountId === accId) { cur = to.currency; amt = fmt(t.toAmount ?? t.amount, cur, { sign: true }); }
     else if (accId) amt = fmt(-t.amount, cur);
     else amt = fmt(t.amount, cur) + (to && to.currency !== cur ? ` → ${fmt(t.toAmount, to.currency)}` : '');
   } else {
-    title = t.note || catName(t.categoryId); sub = `${esc(catName(t.categoryId))} · ${esc(a?.name || 'Cuenta borrada')}`;
+    const s1 = subName(a, t.subId);
+    title = t.note || catName(t.categoryId); sub = `${esc(catName(t.categoryId))} · ${esc(a?.name || 'Cuenta borrada')}${s1 ? ' · ' + esc(s1) : ''}`;
     amt = fmt(t.type === 'income' ? t.amount : -t.amount, cur, { sign: true }); cls = t.type === 'income' ? 'pos' : 'neg';
   }
   const icon = t.type === 'transfer' ? 'tr' : t.type === 'income' ? 'in' : 'out';
@@ -472,7 +500,8 @@ function vMovimientos() {
   </section>
   <div class="mv-find">
     <label class="search">${ico('search')}<input id="f-q" data-filter="q" type="search" placeholder="Buscar por nota o categoría" aria-label="Buscar movimientos" value="${esc(f.q)}"></label>
-    <div><button class="btn filt-btn" data-act="toggle-filters" aria-expanded="${open}" aria-controls="filters">${ico('filter')}Filtros${nf ? `<span class="count">${nf}</span>` : ''}</button></div>
+    <div class="find-acts"><button class="btn filt-btn" data-act="toggle-filters" aria-expanded="${open}" aria-controls="filters">${ico('filter')}Filtros${nf ? `<span class="count">${nf}</span>` : ''}</button>
+      <button class="btn filt-btn" data-act="cats">${ico('tag')}Categorías</button></div>
     ${open ? `<section class="card filters" id="filters" aria-label="Filtros">
       <label class="field"><span>Desde</span><input id="f-from" data-filter="from" type="date" value="${f.from}"></label>
       <label class="field"><span>Hasta</span><input id="f-to" data-filter="to" type="date" value="${f.to}"></label>
@@ -489,24 +518,27 @@ function vMovimientos() {
   ${ledger(list.slice(0, UI.txLimit), { acc: f.acc && S.accounts[f.acc] ? f.acc : null, emptyTitle: nf || f.q ? 'No hay movimientos con estos filtros' : 'Aún no hay movimientos', emptyText: nf || f.q ? 'Cambia la búsqueda o los filtros.' : 'Registra el primero con los botones de arriba.',
     foot: list.length ? `<div class="more"><span class="small muted">Viendo ${shown} de ${list.length}</span>${list.length > shown ? `<button class="btn" data-act="more-tx">Cargar más</button>` : ''}</div>` : '' })}`;
 }
+/* Botones de periodo para un gráfico de precio. */
+const rangeSeg = key => `<div class="seg" role="group" aria-label="Periodo">${[[1, '1 día'], [7, '7 días'], [30, '30 días'], [365, '1 año']].map(([d, l]) => `<button data-act="range" data-key="${key}" data-days="${d}" aria-pressed="${(UI.range[key] ?? 30) === d}">${l}</button>`).join('')}</div>`;
+const priceChart = (key, label) => `<div class="chart-box short"><canvas id="ch-${key}" data-chart="${key}" aria-label="Gráfico de ${esc(label)}"></canvas></div>`;
 function vInversiones() {
-  const H = holdings(); const base = baseCur(); const usdcop = curRates().usdcop;
+  const H = holdings(); const base = baseCur();
   const tv = H.reduce((s, h) => s + h.value, 0), tb = H.reduce((s, h) => s + h.basis, 0), tp = tv - tb;
   const trades = Object.values(S.trades).sort((a, b) => a.date < b.date ? 1 : -1);
-  return modeNotice() + `<div class="card-head"><h1>Inversiones en cripto</h1><button class="btn primary" data-act="new-trade">Registrar compra o venta</button></div>
-  ${H.length ? `<section class="hero"><span class="label">Valor actual de tus inversiones</span><span class="big">${fmt(conv(tv, 'USD', base), base)}</span><span class="sub">${fmt(tv, 'USD')} · Ganancia o pérdida sin vender: <b>${fmt(conv(tp, 'USD', base), base, { sign: true })} (${pct(tb ? tp / tb * 100 : 0)})</b></span></section>
-  <div class="grid g2">${H.map(h => `<section class="card"><div class="card-head"><h2>${esc(h.asset)} <span class="small muted">${esc(coinList()[h.asset] || '')}</span></h2><span class="chip ${h.pnl >= 0 ? 'pos' : 'neg'}">${pct(h.pnlPct)}</span></div>
-    <div class="kv"><span class="muted">Cantidad que tienes</span><b>${fmt(h.held, h.asset)}</b></div>
-    <div class="kv"><span class="muted">Precio promedio de compra</span><b>${fmt(h.avg, 'USD')}</b></div>
-    <div class="kv"><span class="muted">Precio actual</span><b>${fmt(h.price, 'USD')} · ${fmt(h.price * usdcop, 'COP')}</b></div>
+  return modeNotice() + `<div class="card-head"><h1>Inversiones</h1><button class="btn primary" data-act="new-trade">Registrar compra o venta</button></div>
+  ${H.length ? `<section class="hero"><span class="label">Valor actual de tus inversiones</span><span class="big">${fmt(tv, 'USD')}</span><span class="sub">${base !== 'USD' ? `≈ ${fmt(conv(tv, 'USD', base), base)} · ` : ''}Ganancia o pérdida sin vender: <b>${fmt(tp, 'USD', { sign: true })} (${pct(tb ? tp / tb * 100 : 0)})</b></span></section>
+  <div class="grid g2">${H.map(h => { const n = priceSeries(h.asset).length; return `<section class="card inv"><div class="card-head"><h2>${esc(assetName(h.asset))} <span class="small muted">${FUTURES[h.asset] ? 'Futuro' : esc(h.asset)}</span></h2><span class="chip ${h.pnl >= 0 ? 'pos' : 'neg'}">${pct(h.pnlPct)}</span></div>
+    <div class="kv"><span class="muted">Cantidad que tienes</span><b>${fmtQty(h.held, h.asset)}</b></div>
     <div class="kv"><span class="muted">Valor actual</span><b>${fmt(h.value, 'USD')}</b></div>
+    <div class="kv"><span class="muted">Precio actual</span><b>${fmt(h.price, 'USD')}</b></div>
     <div class="kv"><span class="muted">Ganancia o pérdida</span><b class="${h.pnl >= 0 ? 'pos' : 'neg'}">${fmt(h.pnl, 'USD', { sign: true })}</b></div>
-    ${h.sellQty ? `<div class="kv"><span class="muted">Ganancia ya realizada (ventas)</span><b class="${h.realized >= 0 ? 'pos' : 'neg'}">${fmt(h.realized, 'USD', { sign: true })}</b></div>` : ''}
-    <div class="small muted" style="margin-top:6px">Plataformas: ${esc([...h.platforms].join(', ') || '—')}</div></section>`).join('')}</div>` : ''}
+    ${n > 1 ? `<div class="inv-chart">${rangeSeg(h.asset)}${priceChart(h.asset, assetName(h.asset))}</div>` : '<p class="small muted">Aún no hay historial de precios para esta moneda.</p>'}
+    <div class="small muted">Plataformas: ${esc([...h.platforms].join(', ') || '—')}</div>
+    ${h.sellQty ? `<div class="realized"><span class="avatar ${h.realized >= 0 ? 'income' : 'expense'}">${ico(h.realized >= 0 ? 'in' : 'out')}</span><div class="main"><div class="t">Ganancia ya realizada</div><div class="s">Por lo que vendiste</div></div><div class="amt ${h.realized >= 0 ? 'pos' : 'neg'}">${fmt(h.realized, 'USD', { sign: true })}</div></div>` : ''}</section>`; }).join('')}</div>` : ''}
   <section class="card"><h2>Historial de compras y ventas</h2>${trades.length ? `<div class="tbl-wrap"><table><thead><tr><th>Fecha</th><th>Operación</th><th>Activo</th><th class="r">Cantidad</th><th class="r">Precio</th><th class="r">Total</th><th>Plataforma</th></tr></thead><tbody>
-    ${trades.map(t => `<tr class="row-click" data-act="edit-trade" data-id="${t.id}" style="cursor:pointer"><td>${fdate(t.date)}</td><td><span class="chip ${t.side === 'buy' ? 'pos' : 'neg'}">${t.side === 'buy' ? 'Compra' : 'Venta'}</span>${t.demo ? '<span class="pill-demo">ejemplo</span>' : ''}</td><td>${esc(t.asset)}</td><td class="r">${num(t.qty, 8)}</td><td class="r">${fmt(t.price, t.priceCur || 'USD')}</td><td class="r">${fmt(t.qty * t.price, t.priceCur || 'USD')}</td><td>${esc(t.platform || '')}</td></tr>`).join('')}
-  </tbody></table></div>` : `<div class="empty"><b>Aún no registras inversiones</b>Anota cada compra o venta de cripto con su precio, y aquí verás si vas ganando o perdiendo.</div>`}</section>
-  <p class="small muted">El precio promedio es el costo total de tus compras dividido por la cantidad comprada. Esta sección es un registro aparte: para que la cripto cuente en tu patrimonio, crea también una cuenta cripto con su saldo.</p>`;
+    ${trades.map(t => `<tr class="row-click" data-act="edit-trade" data-id="${t.id}" style="cursor:pointer"><td>${fdate(t.date)}</td><td><span class="chip ${t.side === 'buy' ? 'pos' : 'neg'}">${t.side === 'buy' ? 'Compra' : 'Venta'}</span>${t.demo ? '<span class="pill-demo">ejemplo</span>' : ''}</td><td>${esc(assetName(t.asset))}</td><td class="r">${num(t.qty, 8)}</td><td class="r">${fmt(t.price, t.priceCur || 'USD')}</td><td class="r">${fmt(t.qty * t.price, t.priceCur || 'USD')}</td><td>${esc(t.platform || '')}</td></tr>`).join('')}
+  </tbody></table></div>` : `<div class="empty"><b>Aún no registras inversiones</b>Anota cada compra o venta de cripto o de futuros (S&amp;P 500, Nasdaq) con su precio, y aquí verás si vas ganando o perdiendo.</div>`}</section>
+  <p class="small muted">Los precios están en dólares. Esta sección es un registro aparte: para que la inversión cuente en tu patrimonio, crea también una cuenta con su saldo.</p>`;
 }
 function seriesFor(key) {
   const pts = fxPoints(); const r = curRates();
@@ -515,27 +547,39 @@ function seriesFor(key) {
   const T = today(); if (!s.length || s[s.length - 1][0] < T) s.push([T, nowV]); else s[s.length - 1][1] = nowV;
   return s;
 }
+/* Historial diario de una tasa, una criptomoneda o un futuro, terminando en el precio de hoy. */
+function priceSeries(key) {
+  if (MARKET_FX.some(x => x[0] === key)) return seriesFor(key);
+  const hist = FUTURES[key] ? S.market.futures?.items?.[key]?.hist : S.market.crypto?.coins?.[key]?.hist;
+  const s = (hist || []).slice(); const u = coinUsd(key); const T = today();
+  if (u != null) { if (s.length && s[s.length - 1][0] === T) s[s.length - 1] = [T, u]; else s.push([T, u]); }
+  return s;
+}
 function vMercado() {
-  const r = curRates(); const coins = coinList();
-  const live = LIVE.status === 'ok' ? `<div class="notice info"><span class="dot" style="color:var(--pos)"></span><div class="grow"><b>Cotizaciones en vivo.</b> Se consultaron hace un momento.</div></div>`
-    : `<div class="notice info"><span class="dot" style="color:var(--accent-text)"></span><div class="grow"><b>Cotizaciones del ${r.updated ? fdate(r.updated.slice(0, 10)) : '—'} (${esc(r.source)}).</b> ${LIVE.status === 'pending' ? 'Consultando precios actuales…' : 'No se pudo conectar para actualizarlas. Revisa tu internet o escríbelas tú.'}</div><button class="btn sm" data-act="manual-rates">Editar tasas</button></div>`;
-  const pair = (key, label, val, q) => {
-    const s = seriesFor(key); const days = UI.range[key]; const from = addDays(today(), -days); const ss = s.filter(p => p[0] >= from);
+  const r = curRates(); const coins = coinList(); const hid = mHidden();
+  const live = LIVE.status === 'ok' ? `<div class="notice info"><span class="dot" style="color:var(--pos)"></span><div class="grow"><b>Cotizaciones en vivo.</b> Última consulta: ${LIVE.updated ? new Date(LIVE.updated).toLocaleTimeString('es-CO', { hour: 'numeric', minute: '2-digit' }) : 'hace un momento'}</div></div>`
+    : `<div class="notice info"><span class="dot" style="color:var(--accent-text)"></span><div class="grow"><b>Cotizaciones del ${r.updated ? fdate(r.updated.slice(0, 10)) : '—'} (${esc(r.source)}).</b> ${LIVE.status === 'pending' ? 'Consultando precios actuales…' : 'No se pudo conectar. Revisa tu internet y toca "Actualizar precios".'}</div></div>`;
+  const card = (key, label, val, q, sub) => {
+    const s = priceSeries(key); const from = addDays(today(), -(UI.range[key] ?? 30)); const ss = s.filter(p => p[0] >= from);
     const first = ss[0]?.[1], ch = first ? (val - first) / first * 100 : 0;
-    return `<section class="card"><div class="card-head"><div><div class="label">${label}</div><div class="stat"><span class="v">${fmt(val, q)}</span></div></div><span class="chip ${ch >= 0 ? 'pos' : 'neg'}">${pct(ch)}</span></div>
-      <div class="seg" role="group" aria-label="Periodo">${[[1, '1 día'], [7, '7 días'], [30, '30 días'], [365, '1 año']].map(([d, l]) => `<button data-act="range" data-key="${key}" data-days="${d}" aria-pressed="${days === d}">${l}</button>`).join('')}</div>
-      <div class="chart-box short" style="margin-top:10px"><canvas id="ch-${key}" aria-label="Gráfico ${label}"></canvas></div></section>`;
+    return `<section class="card"><div class="card-head"><div><div class="label">${label}</div><div class="stat"><span class="v">${fmt(val, q)}</span></div>${sub ? `<div class="small muted">${sub}</div>` : ''}</div><span class="chip ${ch >= 0 ? 'pos' : 'neg'}">${pct(ch)}</span></div>
+      ${rangeSeg(key)}<div style="margin-top:10px">${priceChart(key, label)}</div></section>`;
   };
+  const fxVal = { USDCOP: [r.usdcop, 'COP'], EURCOP: [r.usdcop * r.eurusd, 'COP'], EURUSD: [r.eurusd, 'USD'] };
+  const fx = MARKET_FX.filter(([k]) => !hid.has(k)), fut = Object.entries(FUTURES).filter(([k]) => !hid.has(k)), cr = Object.entries(coins).filter(([k]) => !hid.has(k));
   const alerts = Object.values(S.alerts);
   const trig = new Set(triggeredAlerts().map(a => a.id));
-  return modeNotice() + `<div class="card-head"><h1>Mercado</h1><button class="btn" data-act="manual-rates">Ingresar tasas a mano</button></div>${live}
-  <div class="grid g3">${pair('USDCOP', 'Dólar · USD/COP', r.usdcop, 'COP')}${pair('EURCOP', 'Euro · EUR/COP', r.usdcop * r.eurusd, 'COP')}${pair('EURUSD', 'Euro · EUR/USD', r.eurusd, 'USD')}</div>
-  <section class="card"><div class="card-head"><h2>Criptomonedas</h2><button class="btn sm" data-act="add-coin">Agregar moneda</button></div>
+  return modeNotice() + `<div class="card-head"><h1>Mercado</h1><div class="btns"><button class="btn" data-act="mview">${ico('eye')}Elegir qué ver</button><button class="btn primary" data-act="refresh-market" ${UI.refreshing ? 'disabled' : ''}>${ico('refresh')}${UI.refreshing ? 'Actualizando…' : 'Actualizar precios'}</button></div></div>${live}
+  ${fx.length ? `<div class="grid ${fx.length === 3 ? 'g3' : 'g2'}">${fx.map(([k, l]) => card(k, l, ...fxVal[k])).join('')}</div>` : ''}
+  ${fut.length ? `<section><div class="sec-head"><h2>Futuros</h2></div><div class="grid g2">${fut.map(([k, f]) => card(k, `${f.name} · USD`, coinUsd(k), 'USD', esc(f.full))).join('')}</div>
+    <p class="small muted" style="margin:10px 4px 0">Precio del futuro E-mini (CME). El historial de días pasados es aproximado: sigue a los fondos SPY y QQQ.</p></section>` : ''}
+  ${cr.length ? `<section class="card"><div class="card-head"><h2>Criptomonedas</h2><button class="btn sm" data-act="add-coin">Agregar moneda</button></div>
     <div class="tbl-wrap"><table><thead><tr><th>Moneda</th><th class="r">Precio USD</th><th class="r">Precio COP</th><th class="r">24 horas</th></tr></thead><tbody>
-    ${Object.entries(coins).map(([k, n]) => { const u = coinUsd(k), c = coinCh24(k); return `<tr><td><b>${esc(k)}</b> <span class="muted small">${esc(n)}</span></td><td class="r">${u == null ? '—' : fmt(u, 'USD')}</td><td class="r">${u == null ? '—' : fmt(u * r.usdcop, 'COP')}</td><td class="r">${c == null ? '<span class="muted">—</span>' : `<span class="${c >= 0 ? 'pos' : 'neg'}">${pct(c)}</span>`}</td></tr>`; }).join('')}
+    ${cr.map(([k, n]) => { const u = coinUsd(k), c = coinCh24(k); return `<tr><td><b>${esc(k)}</b> <span class="muted small">${esc(n)}</span></td><td class="r">${u == null ? '—' : fmt(u, 'USD')}</td><td class="r">${u == null ? '—' : fmt(u * r.usdcop, 'COP')}</td><td class="r">${c == null ? '<span class="muted">—</span>' : `<span class="${c >= 0 ? 'pos' : 'neg'}">${pct(c)}</span>`}</td></tr>`; }).join('')}
     </tbody></table></div>
-    ${S.market.crypto?.coins?.BTC?.hist ? `<div class="card-head" style="margin-top:16px"><h3>Bitcoin en USD</h3><div class="seg">${[[1, '1 día'], [7, '7 días'], [30, '30 días'], [365, '1 año']].map(([d, l]) => `<button data-act="range" data-key="BTC" data-days="${d}" aria-pressed="${UI.range.BTC === d}">${l}</button>`).join('')}</div></div><div class="chart-box short"><canvas id="ch-BTC" aria-label="Gráfico de Bitcoin"></canvas></div>` : ''}
-  </section>
+    ${!hid.has('BTC') && S.market.crypto?.coins?.BTC?.hist ? `<div class="card-head" style="margin-top:16px"><h3>Bitcoin en USD</h3>${rangeSeg('BTC')}</div>${priceChart('BTC', 'Bitcoin')}` : ''}
+  </section>` : ''}
+  ${!fx.length && !fut.length && !cr.length ? `<div class="card empty"><b>Ocultaste todo</b>Toca "Elegir qué ver" para mostrar tasas, futuros o criptomonedas.</div>` : ''}
   <section class="card"><div class="card-head"><h2>Alertas de precio</h2><button class="btn sm primary" data-act="new-alert">Nueva alerta</button></div>
     ${alerts.length ? `<div class="rows">${alerts.map(a => { const now = pairValue(a.pair); return `<div class="row"><div class="main"><div class="t">Avisarme si ${esc(a.pair)} ${a.op === '>' ? 'supera' : 'baja de'} ${esc(fmtPair(a.pair, a.value))}${a.demo ? '<span class="pill-demo">ejemplo</span>' : ''}</div><div class="s">Ahora: ${now == null ? '—' : esc(fmtPair(a.pair, now))}</div></div>
       <span class="chip ${a.active === false ? 'neutral' : trig.has(a.id) ? 'neg' : 'pos'}">${a.active === false ? 'Pausada' : trig.has(a.id) ? 'Se cumplió' : 'Vigilando'}</span>
@@ -550,18 +594,28 @@ function vAhorro() {
   const cats = [...new Set([...Object.keys(lim).filter(k => lim[k] > 0), ...Object.keys(f.byCat)])].filter(k => S.categories[k] || f.byCat[k]);
   const planned = goals.reduce((s, g) => s + conv(goalPlan(g).monthly, g.currency, 'COP'), 0);
   const isCur = key === today().slice(0, 7);
-  return modeNotice() + `<div class="card-head"><h1>Plan de ahorro</h1><button class="btn primary" data-act="new-goal">Nueva meta</button></div>
-  <section class="card"><h2>Metas</h2>${goals.length ? `<div class="goals">${goals.map(g => { const p = goalPlan(g); return `<div class="goal">
+  const subs = accList(false).flatMap(a => { const sb = subBalances(a); return subList(a).map(s => ({ ...s, a, bal: sb[s.id] })); });
+  const budget = budgetCard(key, f, lim, cats, planned, isCur);
+  return modeNotice() + `<h1>Ahorro</h1>
+  <section class="card"><div class="card-head"><h2>Subgrupos</h2><button class="btn sm primary" data-act="new-sub">Nuevo subgrupo</button></div>
+    ${subs.length ? `<div class="rows">${subs.map(s => `<div class="row click" data-act="edit-sub" data-id="${s.a.id}" data-sid="${s.id}"><span class="avatar tint" style="--c:${esc(accColor(s.a.color))}">${ico('piggy')}</span>
+      <div class="main"><div class="t">${esc(s.name)}</div><div class="s">${esc(s.a.name)}${s.initial ? ` · apartaste ${fmt(s.initial, s.a.currency)}` : ''}</div></div>
+      <div class="r"><div class="amt ${s.bal < 0 ? 'neg' : ''}">${fmt(s.bal, s.a.currency)}</div></div></div>`).join('')}</div>`
+      : `<div class="empty"><b>Aún no tienes subgrupos</b>Aparta dinero de una cuenta para algo. Ej: en Bancolombia, 3.000.000 para "Bicicleta".</div>`}</section>
+  ${budget}
+  <section class="card"><div class="card-head"><h2>Metas</h2><button class="btn sm primary" data-act="new-goal">Nueva meta</button></div>${goals.length ? `<div class="goals">${goals.map(g => { const p = goalPlan(g); return `<div class="goal">
     <div class="goal-top">${ring(p.pct)}<div class="goal-name"><h3>${esc(g.name)}${g.demo ? '<span class="pill-demo">ejemplo</span>' : ''}</h3><span class="small muted">Llevas ${fmt(p.saved, g.currency)} de ${fmt(g.target, g.currency)}</span></div><button class="btn sm ghost" data-act="edit-goal" data-id="${g.id}">Editar</button></div>
     <div class="kv"><span class="muted">Fecha ${fdate(g.deadline)}</span><b>${p.left <= 0 ? '<span class="pos">¡Meta cumplida!</span>' : p.days < 0 ? '<span class="neg">Fecha vencida</span>' : `${fmt(p.monthly, g.currency)} al mes`}</b></div>
     ${p.left > 0 && p.days >= 0 ? `<div class="small muted">Te faltan ${fmt(p.left, g.currency)} en ${p.months} ${p.months === 1 ? 'mes' : 'meses'}.</div>` : ''}
     <div class="btns"><button class="btn sm primary" data-act="contrib" data-id="${g.id}">Aportar</button></div></div>`; }).join('')}</div>`
-    : `<div class="empty"><b>Aún no tienes metas</b>Ejemplo: "Viaje: 10.000.000 COP para diciembre". La app calcula cuánto ahorrar cada mes.</div>`}</section>
-  <section class="card"><div class="card-head"><h2>Presupuesto de ${monthLabel(key)}</h2><div class="btns"><button class="btn sm" data-act="bmonth" data-d="-1" aria-label="Mes anterior">‹</button>${isCur ? '' : '<button class="btn sm" data-act="bmonth" data-d="0">Este mes</button>'}<button class="btn sm" data-act="bmonth" data-d="1" aria-label="Mes siguiente">›</button><button class="btn sm primary" data-act="edit-budget">Editar límites</button></div></div>
+    : `<div class="empty"><b>Aún no tienes metas</b>Ejemplo: "Viaje: 10.000.000 COP para diciembre". La app calcula cuánto ahorrar cada mes.</div>`}</section>`;
+}
+function budgetCard(key, f, lim, cats, planned, isCur) {
+  return `<section class="card"><div class="card-head"><h2>Presupuesto de ${monthLabel(key)}</h2><div class="btns"><button class="btn sm" data-act="bmonth" data-d="-1" aria-label="Mes anterior">‹</button>${isCur ? '' : '<button class="btn sm" data-act="bmonth" data-d="0">Este mes</button>'}<button class="btn sm" data-act="bmonth" data-d="1" aria-label="Mes siguiente">›</button><button class="btn sm primary" data-act="new-budget">Nuevo presupuesto</button></div></div>
     <div class="stats"><div class="stat"><span class="label">Ingresos</span><span class="v pos">${fmt(f.inc, 'COP')}</span></div><div class="stat"><span class="label">Gastos</span><span class="v neg">${fmt(f.exp, 'COP')}</span></div><div class="stat"><span class="label">Sobra para ahorrar</span><span class="v ${f.save >= 0 ? 'pos' : 'neg'}">${fmt(f.save, 'COP')}</span></div></div>
     ${planned > 0 ? `<p class="small ${f.save >= planned ? 'muted' : 'neg'}" style="margin:10px 0 0">Tus metas piden ${fmt(planned, 'COP')} al mes. ${f.save >= planned ? 'Este mes te alcanza.' : `Este mes te faltan ${fmt(planned - f.save, 'COP')}.`}</p>` : ''}
-    <div class="rows" style="margin-top:8px">${cats.length ? cats.sort((a, b) => (f.byCat[b] || 0) - (f.byCat[a] || 0)).map(c => { const sp = f.byCat[c] || 0, l = lim[c] || 0, over = l && sp > l; const w = l ? Math.min(100, sp / l * 100) : 0; return `<div class="row" style="display:grid;gap:6px"><div class="kv"><span><b>${esc(catName(c))}</b> ${over ? '<span class="chip neg">Te pasaste</span>' : l && sp > l * 0.85 ? '<span class="chip warn">Cerca del límite</span>' : ''}</span><b class="${over ? 'neg' : ''}">${fmt(sp, 'COP')}${l ? ` <span class="muted">/ ${fmt(l, 'COP')}</span>` : ' <span class="muted small">sin límite</span>'}</b></div>${l ? `<div class="bar ${over ? 'over' : ''}"><i style="width:${w}%"></i></div>` : ''}</div>`; }).join('') : `<div class="empty"><b>Sin gastos este mes</b>Define límites con "Editar límites".</div>`}</div>
-    <p class="small muted">Los límites y montos de esta sección están en COP.</p></section>`;
+    <div class="rows" style="margin-top:8px">${cats.length ? cats.sort((a, b) => (f.byCat[b] || 0) - (f.byCat[a] || 0)).map(c => { const sp = f.byCat[c] || 0, l = lim[c] || 0, over = l && sp > l; const w = l ? Math.min(100, sp / l * 100) : 0; return `<div class="row${S.categories[c] ? ' click' : ''}" style="display:grid;gap:6px"${S.categories[c] ? ` data-act="edit-budget" data-id="${c}"` : ''}><div class="kv"><span><b>${esc(catName(c))}</b> ${over ? '<span class="chip neg">Te pasaste</span>' : l && sp > l * 0.85 ? '<span class="chip warn">Cerca del límite</span>' : ''}</span><b class="${over ? 'neg' : ''}">${fmt(sp, 'COP')}${l ? ` <span class="muted">/ ${fmt(l, 'COP')}</span>` : ' <span class="muted small">sin límite</span>'}</b></div>${l ? `<div class="bar ${over ? 'over' : ''}"><i style="width:${w}%"></i></div>` : ''}</div>`; }).join('') : `<div class="empty"><b>Sin gastos este mes</b>Agrega un límite con "Nuevo presupuesto".</div>`}</div>
+    <p class="small muted">Los límites y montos de esta sección están en COP. Toca una categoría para cambiar o quitar su límite.</p></section>`;
 }
 /* Anillo de progreso de una meta (círculo SVG con el porcentaje en el centro). */
 function ring(pct) {
@@ -580,14 +634,11 @@ function vPagos() {
   <p class="small muted">Al tocar "Pagado", la app crea el gasto en la cuenta del pago y mueve la próxima fecha según la frecuencia.</p>`;
 }
 function vAjustes() {
-  const cats = Object.values(S.categories).sort((a, b) => a.kind.localeCompare(b.kind) || a.name.localeCompare(b.name));
   const nDemo = demoDocs().length;
   return modeNotice() + `<h1>Ajustes</h1>
   <section class="card"><h2>Moneda base</h2><p class="small muted" style="margin-top:0">El patrimonio total y los resúmenes se muestran en esta moneda.</p>
     <div class="seg">${['COP', 'USD', 'EUR'].map(c => `<button data-act="set-base" data-cur="${c}" aria-pressed="${baseCur() === c}">${c}</button>`).join('')}</div></section>
   <section class="card"><h2>Tema</h2><div class="seg">${[['auto', 'Automático'], ['light', 'Claro'], ['dark', 'Oscuro']].map(([k, l]) => `<button data-act="set-theme" data-theme="${k}" aria-pressed="${themeMode() === k}">${l}</button>`).join('')}</div></section>
-  <section class="card"><div class="card-head"><h2>Categorías</h2><button class="btn sm primary" data-act="new-cat">Nueva categoría</button></div>
-    <div class="rows">${cats.map(c => `<div class="row click" data-act="edit-cat" data-id="${c.id}"><div class="main"><div class="t">${esc(c.name)}</div></div><span class="chip ${c.kind === 'income' ? 'pos' : 'neg'}">${c.kind === 'income' ? 'Ingreso' : 'Gasto'}</span></div>`).join('')}</div></section>
   <section class="card"><h2>Datos de ejemplo</h2><p class="small muted" style="margin-top:0">${nDemo ? `Hay ${nDemo} datos de ejemplo (cuentas, movimientos, metas…). Borrarlos no toca lo que tú hayas registrado.` : 'No hay datos de ejemplo cargados.'}</p>
     <div class="btns">${nDemo ? '<button class="btn danger" data-act="ask-clear-demo">Borrar datos de ejemplo</button>' : '<button class="btn" data-act="load-demo">Cargar datos de ejemplo</button>'}</div></section>
   <section class="card"><h2>Respaldo</h2><p class="small muted" style="margin-top:0">Descarga todos tus datos en un archivo .json. Guárdalo en tu computador o en la nube. Con "Restaurar" puedes volver a cargarlo.</p>
@@ -623,7 +674,7 @@ function vMigrate() {
     </div></section></div>`;
 }
 function vMas() {
-  const items = [['cuentas', 'Cuentas y billeteras', 'Bancos, Nequi, efectivo, cripto'], ['inversiones', 'Inversiones', 'Compras y ventas de cripto'], ['pagos', 'Pagos recurrentes', 'Suscripciones, arriendo, cuotas'], ['ajustes', 'Ajustes', 'Moneda, tema, categorías, respaldo']];
+  const items = [['cuentas', 'Cuentas y billeteras', 'Bancos, Nequi, efectivo, cripto'], ['inversiones', 'Inversiones', 'Cripto y futuros (S&amp;P 500, Nasdaq)'], ['pagos', 'Pagos recurrentes', 'Suscripciones, arriendo, cuotas'], ['ajustes', 'Ajustes', 'Moneda, tema, respaldo']];
   return `<h1>Más</h1><div class="morelist">${items.map(([k, t, s]) => `<button data-go="${k}"><span class="avatar" style="color:var(--accent-text)">${ico(k)}</span><span><b>${t}</b><span>${s}</span></span></button>`).join('')}</div>`;
 }
 const VIEW_FN = { inicio: vInicio, cuentas: vCuentas, movimientos: vMovimientos, inversiones: vInversiones, mercado: vMercado, ahorro: vAhorro, pagos: vPagos, ajustes: vAjustes, mas: vMas };
@@ -646,45 +697,14 @@ function mountCharts() {
   while (CH.length) CH.pop().destroy();
   if (!window.Chart) return;
   Chart.defaults.font.family = cssv('--f-body'); Chart.defaults.font.size = 12;
-  const base = baseCur(); const C = ['--c1', '--c2', '--c3', '--c4', '--c5', '--c6'].map(cssv);
-  const nwC = $('#ch-nw');
-  if (nwC) {
-    const T = today(); let first = T;
-    for (const a of Object.values(S.accounts)) if (a.since && a.since < first) first = a.since;
-    for (const t of Object.values(S.txs)) if (t.date < first) first = t.date;
-    const pts = []; let m = addMonths(T.slice(0, 8) + '01', -11); if (m < first.slice(0, 8) + '01') m = first.slice(0, 8) + '01';
-    while (m <= T) { const end = addDays(addMonths(m, 1), -1); if (end >= T) break; pts.push([end, MESES[+end.slice(5, 7) - 1] + ' ' + end.slice(2, 4)]); m = addMonths(m, 1); }
-    pts.push([T, 'Hoy']);
-    const acc = cssv('--chart');
-    CH.push(new Chart(nwC, { type: 'line', data: { labels: pts.map(p => p[1]), datasets: [{ data: pts.map(p => netWorth(p[0] === T ? null : p[0])), borderColor: acc, backgroundColor: hexA(acc, .1), fill: true, tension: .35, pointRadius: 0, pointHoverRadius: 6, pointBackgroundColor: acc, borderWidth: 2 }] }, options: baseOpts(base) }));
-  }
-  const curC = $('#ch-cur');
-  if (curC) {
-    const b = balances(); const g = {};
-    for (const a of Object.values(S.accounts)) { const v = conv(b[a.id], a.currency, base); if (v > 0) g[a.currency] = (g[a.currency] || 0) + v; }
-    const e = Object.entries(g).sort((x, y) => y[1] - x[1]); const tot = e.reduce((s, x) => s + x[1], 0);
-    CH.push(new Chart(curC, { type: 'doughnut', data: { labels: e.map(x => x[0]), datasets: [{ data: e.map(x => x[1]), backgroundColor: e.map((_, i) => C[i % C.length]), borderColor: cssv('--surface'), borderWidth: 2 }] },
-      options: { responsive: true, maintainAspectRatio: false, animation: false, cutout: '74%', plugins: { legend: { display: false }, tooltip: { ...tipStyle(), callbacks: { label: c => ` ${c.label}: ${fmt(c.parsed, base)} (${num(c.parsed / tot * 100, 1)} %)` } } } } }));
-    $('#lg-cur').innerHTML = e.map((x, i) => `<span><i style="background:${C[i % C.length]}"></i>${x[0]} · ${num(x[1] / tot * 100, 1)} %</span>`).join('');
-  }
-  const tC = $('#ch-type');
-  if (tC) {
-    const b = balances(); const g = {};
-    for (const a of Object.values(S.accounts)) g[a.type] = (g[a.type] || 0) + conv(b[a.id], a.currency, base);
-    const e = Object.entries(g).sort((x, y) => y[1] - x[1]);
-    CH.push(new Chart(tC, { type: 'bar', data: { labels: e.map(x => ACC_TYPES[x[0]]), datasets: [{ data: e.map(x => x[1]), backgroundColor: e.map((_, i) => C[i % C.length]), borderRadius: 999, borderSkipped: false, barThickness: 16 }] },
-      options: baseOpts(base, { indexAxis: 'y', plugins: { legend: { display: false }, tooltip: { ...tipStyle(), callbacks: { label: c => ' ' + fmt(c.parsed.x, base) } } },
-        scales: { x: { grid: { display: false }, ticks: { color: cssv('--ink-2'), maxTicksLimit: 4, callback: v => fmtShort(v, base) }, border: { display: false } }, y: { grid: { display: false }, ticks: { color: cssv('--ink') }, border: { display: false } } } }) }));
-  }
-  for (const key of ['USDCOP', 'EURCOP', 'EURUSD', 'BTC']) {
-    const el = $('#ch-' + key); if (!el) continue;
-    const from = addDays(today(), -UI.range[key]);
-    // 1 día de Bitcoin: precios cada 5 minutos (las tasas de cambio solo tienen un dato por día: ayer y hoy)
-    const intra = key === 'BTC' && UI.range.BTC === 1 && INTRA.BTC;
-    let s = intra ? INTRA.BTC.slice() : key === 'BTC' ? (S.market.crypto.coins.BTC.hist || []).slice() : seriesFor(key);
-    if (key === 'BTC' && !intra) { const u = coinUsd('BTC'); if (u != null) s.push([today(), u]); }
-    if (!intra) s = s.filter(p => p[0] >= from);
-    const q = key === 'EURUSD' || key === 'BTC' ? 'USD' : 'COP';
+  // Gráficos de precio: cada <canvas data-chart="CLAVE"> (tasas, criptomonedas y futuros).
+  for (const el of document.querySelectorAll('canvas[data-chart]')) {
+    const key = el.dataset.chart, days = UI.range[key] ?? 30;
+    // 1 día de Bitcoin: precios cada 5 minutos (lo demás solo tiene un dato por día: ayer y hoy)
+    const intra = key === 'BTC' && days === 1 && INTRA.BTC;
+    let s = intra ? INTRA.BTC.slice() : priceSeries(key);
+    if (!intra) { const from = addDays(today(), -days); s = s.filter(p => p[0] >= from); }
+    const q = key === 'USDCOP' || key === 'EURCOP' ? 'COP' : 'USD';
     const col = s.length > 1 && s[s.length - 1][1] >= s[0][1] ? cssv('--pos') : cssv('--neg');
     CH.push(new Chart(el, { type: 'line', data: { labels: s.map(p => intra ? p[0] : fdate(p[0]).slice(0, -5)), datasets: [{ data: s.map(p => p[1]), borderColor: col, backgroundColor: hexA(col, .08), fill: true, tension: .25, pointRadius: s.length < 12 ? 2.5 : 0, borderWidth: 1.5 }] },
       options: baseOpts(q, { scales: { x: { grid: { display: false }, ticks: { color: cssv('--ink-2'), maxTicksLimit: 4, maxRotation: 0 } }, y: { grid: { display: false }, ticks: { color: cssv('--ink-2'), maxTicksLimit: 4, callback: v => key === 'EURUSD' ? num(v, 3) : fmtShort(v, q) }, border: { display: false } } } }) }));
@@ -804,12 +824,31 @@ function txForm(t = {}) {
     <div class="seg" role="radiogroup" aria-label="Tipo">${[['expense', 'Gasto'], ['income', 'Ingreso'], ['transfer', 'Transferencia']].map(([k, l]) => `<label><input type="radio" name="type" value="${k}" ${type === k ? 'checked' : ''}>${l}</label>`).join('')}</div>
     <div class="fgrid two">${fld('Monto', `<input name="amount" id="tx-amount" inputmode="decimal" required value="${inNum(t.amount ?? '')}" placeholder="0">`, NUM_HINT)}${fld('Fecha', `<input type="date" name="date" value="${t.date || today()}">`)}</div>
     ${fld('Cuenta', `<select name="accountId" id="tx-from">${accOptions(from, false, false)}</select>`)}
+    ${subField('subId', 'tx-sub', from, t.subId)}
     <div class="only-flow fgrid">${fld('Categoría', `<select name="categoryId">${catOptions(t.categoryId || (type === 'income' ? 'salario' : 'comida'))}</select>`)}</div>
     <div class="only-transfer fgrid">${fld('Hacia la cuenta', `<select name="toAccountId" id="tx-to">${accOptions(to, false, false)}</select>`)}
+      ${subField('toSubId', 'tx-tosub', to, t.toSubId)}
       <div class="fgrid two" id="fx-row">${fld('Tasa de cambio', `<input id="tx-rate" inputmode="decimal" placeholder="Ej: 3.950">`, '1 unidad de origen = X de destino')}${fld('Monto recibido', `<input name="toAmount" id="tx-toamount" inputmode="decimal" value="${inNum(t.toAmount ?? '')}">`)}</div></div>
     ${fld('Nota (opcional)', `<input name="note" maxlength="80" value="${esc(t.note || '')}" placeholder="Ej: Mercado del mes">`)}
     <div class="btns"><button class="btn primary" type="submit">Guardar</button>${isNew ? '' : `<button type="button" class="btn danger" data-act="del-tx" data-id="${t.id}">Eliminar</button>`}</div>`, 'tx');
   syncFx(true);
+}
+/* Selector de subgrupo de la cuenta elegida; se oculta si la cuenta no tiene subgrupos. */
+function subField(name, id, accId, sel) {
+  const subs = subList(S.accounts[accId]);
+  return `<label class="field" id="${id}-wrap"${subs.length ? '' : ' hidden'}><span>${name === 'toSubId' ? 'Al subgrupo' : 'Subgrupo'}</span><select name="${name}" id="${id}">
+    <option value="">Dinero libre (sin subgrupo)</option>${subs.map(s => `<option value="${s.id}" ${sel === s.id ? 'selected' : ''}>${esc(s.name)}</option>`).join('')}</select></label>`;
+}
+function subForm(accId, sid) {
+  const accs = accList(false); if (!accs.length) { toast('Primero crea una cuenta'); return accForm(); }
+  const a = S.accounts[accId]; const s = a?.subs?.[sid] || {}; const isNew = !sid;
+  const def = accId || (accs.find(x => x.type === 'bank') || accs[0]).id;
+  openSheet(isNew ? 'Nuevo subgrupo' : 'Editar subgrupo', `<input type="hidden" name="sid" value="${sid || ''}">
+    <p class="small muted" style="margin:0">Aparta parte del dinero de una cuenta para algo. Ej: de los 15.000.000 de Bancolombia, 3.000.000 para "Bicicleta". El dinero sigue en la cuenta; en los movimientos eliges si entra o sale de este subgrupo.</p>
+    ${isNew ? fld('Cuenta', `<select name="accId">${accOptions(def, false, false)}</select>`) : `<input type="hidden" name="accId" value="${a.id}">${fld('Cuenta', `<input value="${esc(a.name)}" disabled>`)}`}
+    ${fld('Nombre', `<input name="name" maxlength="40" required value="${esc(s.name || '')}" placeholder="Ej: Bicicleta, Viaje, Emergencias">`)}
+    ${fld('Monto que apartas', `<input name="initial" inputmode="decimal" value="${inNum(s.initial ?? '')}" placeholder="0">`, 'En la divisa de la cuenta. Después sube o baja con los movimientos de este subgrupo.')}
+    <div class="btns"><button class="btn primary" type="submit">Guardar</button>${isNew ? '' : `<button type="button" class="btn danger" data-act="del-sub" data-id="${a.id}" data-sid="${sid}">Eliminar</button>`}</div>`, 'sub');
 }
 function syncFx(init, src) {
   const fr = S.accounts[$('#tx-from')?.value], to = S.accounts[$('#tx-to')?.value]; const row = $('#fx-row'); if (!row || !fr || !to) return;
@@ -825,7 +864,8 @@ function tradeForm(t = {}) {
   const isNew = !t.id;
   openSheet(isNew ? 'Registrar compra o venta' : 'Editar operación', `<input type="hidden" name="id" value="${t.id || ''}">
     <div class="seg" role="radiogroup">${[['buy', 'Compra'], ['sell', 'Venta']].map(([k, l]) => `<label><input type="radio" name="side" value="${k}" ${(t.side || 'buy') === k ? 'checked' : ''}>${l}</label>`).join('')}</div>
-    <div class="fgrid two">${fld('Activo', `<select name="asset">${Object.keys(coinList()).map(k => `<option ${k === (t.asset || 'BTC') ? 'selected' : ''}>${k}</option>`).join('')}</select>`)}${fld('Cantidad', `<input name="qty" inputmode="decimal" value="${inNum(t.qty ?? '')}" placeholder="0,005">`, 'Ej: 0,005 BTC')}</div>
+    <div class="fgrid two">${fld('Activo', `<select name="asset"><optgroup label="Criptomonedas">${Object.entries(coinList()).map(([k, n]) => `<option value="${k}" ${k === (t.asset || 'BTC') ? 'selected' : ''}>${esc(k)} · ${esc(n)}</option>`).join('')}</optgroup>
+      <optgroup label="Futuros">${Object.entries(FUTURES).map(([k, f]) => `<option value="${k}" ${k === t.asset ? 'selected' : ''}>${esc(f.name)}</option>`).join('')}</optgroup></select>`)}${fld('Cantidad', `<input name="qty" inputmode="decimal" value="${inNum(t.qty ?? '')}" placeholder="0,005">`, 'Ej: 0,005 BTC o 2 unidades del S&amp;P 500')}</div>
     <div class="fgrid two">${fld('Precio por unidad', `<input name="price" inputmode="decimal" value="${inNum(t.price ?? '')}">`)}${fld('Moneda del precio', curSelect('priceCur', t.priceCur || 'USD', true))}</div>
     <div class="fgrid two">${fld('Fecha', `<input type="date" name="date" value="${t.date || today()}">`)}${fld('Plataforma', `<input name="platform" maxlength="40" value="${esc(t.platform || '')}" placeholder="Binance, MetaMask…">`)}</div>
     <div class="btns"><button class="btn primary" type="submit">Guardar</button>${isNew ? '' : `<button type="button" class="btn danger" data-act="del-trade" data-id="${t.id}">Eliminar</button>`}</div>`, 'trade');
@@ -846,11 +886,16 @@ function contribForm(g) {
     <div class="btns"><button class="btn primary" type="submit">Guardar aporte</button></div>
     ${hist.length ? `<div><div class="label" style="margin-bottom:4px">Aportes anteriores</div><div class="rows">${hist.map(c => `<div class="row"><div class="main"><div class="t">${fmt(c.amount, g.currency)}</div><div class="s">${fdate(c.date)} · ${esc(S.accounts[c.accountId]?.name || '—')}</div></div><button type="button" class="btn sm ghost danger" data-act="del-contrib" data-id="${c.id}">Quitar</button></div>`).join('')}</div></div>` : ''}`, 'contrib');
 }
-function budgetForm() {
-  const lim = S.settings.budget?.limits || {};
-  openSheet('Límites mensuales (COP)', `<p class="small muted" style="margin:0">Deja en blanco las categorías sin límite. Te avisamos si te pasas.</p>
-    <div class="fgrid two">${Object.values(S.categories).filter(c => c.kind === 'expense').sort((a, b) => a.name.localeCompare(b.name)).map(c => fld(esc(c.name), `<input name="lim_${c.id}" inputmode="decimal" value="${inNum(lim[c.id] || '')}">`)).join('')}</div>
-    <div class="btns"><button class="btn primary" type="submit">Guardar límites</button></div>`, 'budget');
+/* Un presupuesto = límite mensual (en COP) para una categoría de gasto. */
+function budgetForm(cat) {
+  const lim = S.settings.budget?.limits || {}; const isNew = !cat;
+  const cats = Object.values(S.categories).filter(c => c.kind === 'expense').sort((a, b) => a.name.localeCompare(b.name));
+  if (!cats.length) return toast('Primero crea una categoría de gasto en Movimientos');
+  const sel = cat || (cats.find(c => !lim[c.id]) || cats[0]).id;
+  openSheet(isNew ? 'Nuevo presupuesto' : 'Editar presupuesto', `<p class="small muted" style="margin:0">Pon un límite al mes para una categoría. Te avisamos si te pasas.</p>
+    ${fld('Categoría', `<select name="cat">${cats.map(c => `<option value="${c.id}" ${c.id === sel ? 'selected' : ''}>${esc(c.name)}${isNew && lim[c.id] ? ' (ya tiene)' : ''}</option>`).join('')}</select>`)}
+    ${fld('Límite mensual (COP)', `<input name="limit" inputmode="decimal" value="${inNum(lim[sel] || '')}" placeholder="500.000">`, NUM_HINT)}
+    <div class="btns"><button class="btn primary" type="submit">Guardar</button>${!isNew && lim[cat] ? `<button type="button" class="btn danger" data-act="del-budget" data-id="${cat}">Quitar presupuesto</button>` : ''}</div>`, 'budget');
 }
 function recForm(r = {}) {
   const isNew = !r.id;
@@ -875,13 +920,24 @@ function catForm(c = {}) {
     <div class="btns"><button class="btn primary" type="submit">Guardar</button>${isNew ? '' : `<button type="button" class="btn danger" data-act="del-cat" data-id="${c.id}">Eliminar</button>`}</div>
     ${used ? '<p class="small muted" style="margin:0">Esta categoría tiene movimientos. Si la eliminas, quedarán como "Sin categoría".</p>' : ''}`, 'cat');
 }
-function ratesForm() {
-  const r = curRates(); const coins = coinList();
-  openSheet('Ingresar tasas a mano', `<p class="small muted" style="margin:0">Escribe las tasas que veas en tu banco o en internet. Se usarán hasta que llegue una actualización más reciente.</p>
-    <div class="fgrid two">${fld('1 USD en COP', `<input name="usdcop" inputmode="decimal" value="${inNum(+r.usdcop.toFixed(2))}">`)}${fld('1 EUR en COP', `<input name="eurcop" inputmode="decimal" value="${inNum(+(r.usdcop * r.eurusd).toFixed(2))}">`)}</div>
-    <div class="label">Precio en USD</div>
-    <div class="fgrid two">${Object.keys(coins).map(k => fld(k, `<input name="coin_${k}" inputmode="decimal" value="${inNum(coinUsd(k) ?? '')}">`)).join('')}</div>
-    <div class="btns"><button class="btn primary" type="submit">Guardar tasas</button></div>`, 'rates');
+/* Categorías (antes en Ajustes): se abren desde Movimientos. */
+function catsSheet() {
+  const cats = Object.values(S.categories).sort((a, b) => a.kind.localeCompare(b.kind) || a.name.localeCompare(b.name));
+  openSheet('Categorías', `<div class="btns"><button type="button" class="btn primary" data-act="new-cat">Nueva categoría</button></div>
+    ${cats.length ? `<div class="rows">${cats.map(c => `<div class="row click" data-act="edit-cat" data-id="${c.id}"><div class="main"><div class="t">${esc(c.name)}</div></div><span class="chip ${c.kind === 'income' ? 'pos' : 'neg'}">${c.kind === 'income' ? 'Ingreso' : 'Gasto'}</span></div>`).join('')}</div>`
+      : '<div class="empty"><b>No hay categorías</b>Crea una para clasificar tus gastos e ingresos.</div>'}`);
+}
+/* Mercado: qué tasas, futuros y criptomonedas se muestran. */
+const MARKET_FX = [['USDCOP', 'Dólar · USD/COP'], ['EURCOP', 'Euro · EUR/COP'], ['EURUSD', 'Euro · EUR/USD']];
+const marketKeys = () => [...MARKET_FX.map(x => x[0]), ...Object.keys(FUTURES), ...Object.keys(coinList())];
+const mHidden = () => new Set(S.settings.mview?.hidden || []);
+function mviewForm() {
+  const h = mHidden(); const box = (k, l) => `<label class="check"><input type="checkbox" name="show" value="${k}" ${h.has(k) ? '' : 'checked'}> ${esc(l)}</label>`;
+  openSheet('Elegir qué ver', `<p class="small muted" style="margin:0">Desmarca lo que no quieras ver en Mercado.</p>
+    <div class="label">Tasas de cambio</div><div class="checks">${MARKET_FX.map(([k, l]) => box(k, l)).join('')}</div>
+    <div class="label">Futuros</div><div class="checks">${Object.entries(FUTURES).map(([k, f]) => box(k, f.name)).join('')}</div>
+    <div class="label">Criptomonedas</div><div class="checks">${Object.entries(coinList()).map(([k, n]) => box(k, `${k} · ${n}`)).join('')}</div>
+    <div class="btns"><button class="btn primary" type="submit">Guardar</button></div>`, 'mview');
 }
 function coinForm() {
   openSheet('Agregar criptomoneda', `<div class="fgrid two">${fld('Símbolo', `<input name="sym" maxlength="10" placeholder="ADA" style="text-transform:uppercase">`)}${fld('Nombre', `<input name="name" maxlength="30" placeholder="Cardano">`)}</div>
@@ -908,13 +964,18 @@ const FORMS = {
     const id = fd.get('id') || uid(); const prev = S.txs[id] || {}; const type = fd.get('type');
     const amount = parseNum(fd.get('amount')); if (!(amount > 0)) return toast('Escribe un monto mayor que cero');
     const d = { ...prev, type, amount, date: fd.get('date') || today(), accountId: fd.get('accountId'), note: fd.get('note').trim(), created: prev.created || now() };
+    const sub = fd.get('subId'), toSub = fd.get('toSubId');
+    if (sub && S.accounts[d.accountId]?.subs?.[sub]) d.subId = sub; else delete d.subId;
     if (type === 'transfer') {
-      d.toAccountId = fd.get('toAccountId'); if (d.toAccountId === d.accountId) return toast('Elige dos cuentas distintas');
+      d.toAccountId = fd.get('toAccountId');
+      if (toSub && S.accounts[d.toAccountId]?.subs?.[toSub]) d.toSubId = toSub; else delete d.toSubId;
+      // En la misma cuenta se puede mover dinero entre lo libre y un subgrupo, o entre subgrupos.
+      if (d.toAccountId === d.accountId && (d.subId || '') === (d.toSubId || '')) return toast('Elige otra cuenta o subgrupo de destino');
       const fr = S.accounts[d.accountId], to = S.accounts[d.toAccountId];
       d.toAmount = fr.currency === to.currency ? amount : parseNum(fd.get('toAmount'));
       if (!(d.toAmount > 0)) return toast('Escribe el monto recibido o la tasa');
       d.categoryId = '';
-    } else { d.categoryId = fd.get('categoryId'); delete d.toAccountId; delete d.toAmount; }
+    } else { d.categoryId = fd.get('categoryId'); delete d.toAccountId; delete d.toAmount; delete d.toSubId; }
     await safe(() => put('txs', id, d), 'Movimiento guardado'); closeSheet();
   },
   async trade(fd) {
@@ -932,8 +993,21 @@ const FORMS = {
     await safe(() => put('contribs', uid(), { goalId: fd.get('goalId'), accountId: fd.get('accountId'), amount, date: fd.get('date') || today() }), 'Aporte guardado'); closeSheet();
   },
   async budget(fd) {
-    const limits = {}; for (const [k, v] of fd.entries()) if (k.startsWith('lim_')) { const n = parseNum(v); if (n > 0) limits[k.slice(4)] = n; }
-    await safe(() => put('settings', 'budget', { limits }), 'Presupuesto guardado'); closeSheet();
+    const cat = fd.get('cat'), n = parseNum(fd.get('limit')); if (!cat) return toast('Elige una categoría');
+    if (!(n > 0)) return toast('Escribe el límite del mes');
+    const b = S.settings.budget || {};
+    await safe(() => put('settings', 'budget', { ...b, limits: { ...(b.limits || {}), [cat]: n } }), 'Presupuesto guardado'); closeSheet();
+  },
+  async sub(fd) {
+    const a = S.accounts[fd.get('accId')]; if (!a) return toast('Elige una cuenta');
+    const name = fd.get('name').trim(); if (!name) return toast('Escribe un nombre para el subgrupo');
+    const initial = parseNum(fd.get('initial') || '0'); if (!isFinite(initial) || initial < 0) return toast('Revisa el monto que apartas');
+    const sid = fd.get('sid') || 's' + uid();
+    await safe(() => put('accounts', a.id, { ...a, subs: { ...(a.subs || {}), [sid]: { name, initial } } }), 'Subgrupo guardado'); closeSheet();
+  },
+  async mview(fd) {
+    const shown = new Set(fd.getAll('show')); const hidden = marketKeys().filter(k => !shown.has(k));
+    await safe(() => put('settings', 'mview', { hidden }), 'Listo'); closeSheet();
   },
   async rec(fd) {
     const id = fd.get('id') || uid(); const amount = parseNum(fd.get('amount')); const name = fd.get('name').trim();
@@ -948,13 +1022,6 @@ const FORMS = {
     const name = fd.get('name').trim(); if (!name) return toast('Escribe un nombre');
     const id = fd.get('id') || 'c-' + uid();
     await safe(() => put('categories', id, { ...(S.categories[id] || {}), name, kind: fd.get('kind') }), 'Categoría guardada'); closeSheet();
-  },
-  async rates(fd) {
-    const usdcop = parseNum(fd.get('usdcop')), eurcop = parseNum(fd.get('eurcop'));
-    if (!(usdcop > 0) || !(eurcop > 0)) return toast('Revisa las tasas');
-    const ts = now(); const prev = S.market.manual || {}; const coins = { ...(prev.coins || {}) };
-    for (const [k, v] of fd.entries()) if (k.startsWith('coin_')) { const n = parseNum(v); const sym = k.slice(5); if (n > 0 && Math.abs(n - (coinUsd(sym) ?? 0)) > 1e-9) coins[sym] = { ...(coins[sym] || {}), usd: n, updated: ts }; }
-    await safe(() => put('market', 'manual', { ...prev, fx: { usdcop, eurusd: eurcop / usdcop, updated: ts }, coins }), 'Tasas guardadas'); closeSheet();
   },
   async coin(fd) {
     const sym = fd.get('sym').trim().toUpperCase().replace(/[^A-Z0-9]/g, ''); const usd = parseNum(fd.get('usd'));
@@ -981,7 +1048,19 @@ const ACTS = {
   'del-goal': id => askConfirm('¿Eliminar meta?', 'También se borran sus aportes registrados. El dinero de tus cuentas no cambia.', 'Eliminar meta',
     () => safe(() => writeMany([...Object.values(S.contribs).filter(c => c.goalId === id).map(c => ['del', 'contribs', c.id]), ['del', 'goals', id]]), 'Meta eliminada')),
   'del-contrib': id => { closeSheet(); safe(() => del('contribs', id), 'Aporte quitado'); },
-  'edit-budget': () => budgetForm(),
+  'new-budget': () => budgetForm(), 'edit-budget': id => budgetForm(id),
+  'del-budget': id => { const b = S.settings.budget || {}; const limits = { ...(b.limits || {}) }; delete limits[id]; closeSheet(); safe(() => put('settings', 'budget', { ...b, limits }), 'Presupuesto quitado'); },
+  'new-sub': (_, el) => subForm(el?.dataset.acc), 'edit-sub': (id, el) => subForm(id, el.dataset.sid),
+  'del-sub': (id, el) => { const a = S.accounts[id], sid = el.dataset.sid;
+    askConfirm('¿Eliminar subgrupo?', `Se elimina "${esc(subName(a, sid))}". El dinero y sus movimientos se quedan en ${esc(a.name)} como dinero libre.`, 'Eliminar',
+      () => { const subs = { ...(a.subs || {}) }; delete subs[sid]; safe(() => put('accounts', id, { ...a, subs }), 'Subgrupo eliminado'); }); },
+  'cats': () => catsSheet(),
+  'mview': () => mviewForm(),
+  'refresh-market': async () => {
+    if (UI.refreshing) return; UI.refreshing = true; LIVE.status = 'pending'; render();
+    await tryLive(); UI.refreshing = false; render();
+    toast(LIVE.status === 'ok' ? 'Precios actualizados' : 'No se pudo actualizar. Revisa tu internet.');
+  },
   'bmonth': (_, el) => { const d = +el.dataset.d; UI.budgetMonth = d === 0 ? today().slice(0, 7) : addMonths(UI.budgetMonth + '-01', d).slice(0, 7); render(); },
   'new-rec': () => recForm(), 'edit-rec': id => recForm(S.recurring[id]),
   'del-rec': id => askConfirm('¿Eliminar pago recurrente?', 'Los gastos que ya registraste no se borran.', 'Eliminar', () => safe(() => del('recurring', id), 'Pago eliminado')),
@@ -993,7 +1072,7 @@ const ACTS = {
   'toggle-alert': id => { const a = S.alerts[id]; safe(() => put('alerts', id, { ...a, active: a.active === false })); },
   'del-alert': id => safe(() => del('alerts', id), 'Alerta borrada'),
   'range': (_, el) => { UI.range[el.dataset.key] = +el.dataset.days; render(); if (el.dataset.key === 'BTC' && +el.dataset.days === 1) loadIntraday(); },
-  'manual-rates': () => ratesForm(), 'add-coin': () => coinForm(),
+  'add-coin': () => coinForm(),
   'new-cat': () => catForm(), 'edit-cat': id => catForm(S.categories[id]),
   'del-cat': id => { closeSheet(); safe(() => del('categories', id), 'Categoría eliminada'); },
   'set-base': (_, el) => safe(() => put('settings', 'main', { ...(S.settings.main || {}), base: el.dataset.cur })),
@@ -1061,7 +1140,7 @@ document.addEventListener('input', e => {
 document.addEventListener('change', e => {
   const t = e.target;
   if (t.dataset.filter && t.dataset.filter !== 'q') { UI.f[t.dataset.filter] = t.value; UI.txLimit = TX_FIRST; render(); }
-  if (t.id === 'tx-from' || t.id === 'tx-to') syncFx(false, 'acc');
+  if (t.id === 'tx-from' || t.id === 'tx-to') { syncFx(false, 'acc'); const [n, id] = t.id === 'tx-from' ? ['subId', 'tx-sub'] : ['toSubId', 'tx-tosub']; $(`#${id}-wrap`).outerHTML = subField(n, id, t.value); }
   if (t.id === 'base-sel') safe(() => put('settings', 'main', { ...(S.settings.main || {}), base: t.value }));
   if (t.id === 'import-file' && t.files[0]) importData(t.files[0]);
 });
@@ -1122,6 +1201,7 @@ function importData(file) {
 const COIN_IDS = { BTC: 'bitcoin', ETH: 'ethereum', USDT: 'tether', SOL: 'solana', BNB: 'binancecoin' };
 const getJSON = (url, ms = 8000) => { const ctl = new AbortController(); const t = setTimeout(() => ctl.abort(), ms); return fetch(url, { signal: ctl.signal }).then(r => { clearTimeout(t); if (!r.ok) throw new Error(r.status); return r.json(); }); };
 async function tryLive() {
+  const fut = fetchFutures();
   try {
     const [c, f] = await Promise.all([
       getJSON(`https://api.coingecko.com/api/v3/simple/price?ids=${Object.values(COIN_IDS).join(',')}&vs_currencies=usd&include_24hr_change=true`),
@@ -1132,7 +1212,36 @@ async function tryLive() {
     await saveLive();
     await fillHistory();
   } catch (e) { if (LIVE.status !== 'ok') LIVE.status = 'blocked'; }
+  await fut; if (LIVE.fut) await saveFutures().catch(() => { });
   sched();
+}
+/* Precio actual de los futuros E-mini (TradingView no pide clave y deja consultar desde el navegador). */
+async function fetchFutures() {
+  const ctl = new AbortController(); const t = setTimeout(() => ctl.abort(), 8000);
+  try {
+    const r = await fetch('https://scanner.tradingview.com/futures/scan', { method: 'POST', signal: ctl.signal, body: JSON.stringify({ symbols: { tickers: Object.values(FUTURES).map(f => f.tv) }, columns: ['close', 'change'] }) });
+    if (!r.ok) throw new Error(r.status);
+    const j = await r.json(); const out = {};
+    for (const [k, f] of Object.entries(FUTURES)) { const d = j.data?.find(x => x.s === f.tv)?.d; if (d && d[0] > 0) out[k] = { usd: d[0], ch24: d[1] }; }
+    if (Object.keys(out).length) LIVE.fut = out;
+  } catch (e) { } finally { clearTimeout(t); }
+}
+/* Guarda el precio de hoy y, si falta, trae un año de historial (tokens que siguen a SPY/QQQ, escalados al futuro). */
+async function saveFutures() {
+  const T = today(); const prev = S.market.futures || {}; const items = { ...(prev.items || {}) };
+  for (const [k, v] of Object.entries(LIVE.fut)) {
+    const it = { ...(items[k] || {}), usd: v.usd, ch24: +(v.ch24 ?? 0).toFixed(2) };
+    let hist = (it.hist || []).filter(p => p[0] !== T);
+    if (hist.length < 2 || daysBetween(hist[hist.length - 1][0], T) > 3) {
+      try { const r = await getJSON(`https://api.coingecko.com/api/v3/coins/${FUTURES[k].cg}/market_chart?vs_currency=usd&days=365&interval=daily`);
+        const last = r.prices[r.prices.length - 1][1]; const ratio = v.usd / last; const byDay = {};
+        for (const [ms, p] of r.prices) byDay[iso(new Date(ms))] = +(p * ratio).toFixed(2);
+        hist = Object.entries(byDay).filter(p => p[0] !== T).sort((a, b) => a[0] < b[0] ? -1 : 1);
+      } catch (e) { }
+    }
+    it.hist = [...hist, [T, v.usd]].slice(-400); items[k] = it;
+  }
+  await put('market', 'futures', { ...prev, items, updated: now() });
 }
 async function saveLive() {
   const T = today(), ts = LIVE.updated;
@@ -1156,11 +1265,13 @@ async function fillHistory() {
     const add = got.filter(Boolean);
     if (add.length) { const fx = S.market.fx; await put('market', 'fx', { ...fx, points: [...fx.points, ...add].sort((a, b) => a[0] < b[0] ? -1 : 1) }); }
   }
-  const cr = S.market.crypto; const btcHist = cr?.coins?.BTC?.hist || [];
-  const lastC = btcHist.length > 1 ? btcHist[btcHist.length - 2][0] : '0000';
-  if (daysBetween(lastC, today()) > 2) {
+  // Historial de BTC, ETH y de las criptomonedas que tienes en Inversiones (para sus gráficos).
+  const cr = S.market.crypto; const held = holdings().map(h => h.asset).filter(k => COIN_IDS[k]);
+  const stale = k => { const h = cr?.coins?.[k]?.hist || []; return daysBetween(h.length > 1 ? h[h.length - 2][0] : '2000-01-01', today()) > 2; };
+  const want = [...new Set(['BTC', 'ETH', ...held])].filter(stale);
+  if (want.length) {
     const coins = { ...cr.coins };
-    for (const k of ['BTC', 'ETH']) {
+    for (const k of want) {
       try { const r = await getJSON(`https://api.coingecko.com/api/v3/coins/${COIN_IDS[k]}/market_chart?vs_currency=usd&days=365&interval=daily`);
         const byDay = {}; for (const [ms, p] of r.prices) byDay[iso(new Date(ms))] = +p.toFixed(2);
         coins[k] = { ...coins[k], hist: Object.entries(byDay).sort((a, b) => a[0] < b[0] ? -1 : 1) };

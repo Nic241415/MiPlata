@@ -22,6 +22,10 @@ Todo se escribe a mano: la app nunca pide ni guarda claves de bancos. Maneja pes
 
 - Pantallas: Inicio, Cuentas, Movimientos, Inversiones, Mercado, Ahorro, Pagos, Ajustes; en móvil barra inferior + "Más"; en escritorio barra lateral.
 - Al abrir la app aparece siempre una pantalla de bienvenida breve (recibir con calma: nombre, una frase, botón para entrar); después login o directo a la app si hay sesión.
+- Inicio solo muestra el saldo, tres botones (gasto, ingreso, transferencia) y las cuentas (pedido del dueño: sin gráficos ni resúmenes).
+- Subgrupos: dinero apartado dentro de una cuenta (ej. "Bicicleta" en Bancolombia); los movimientos pueden entrar o salir de un subgrupo.
+- Inversiones y Mercado incluyen futuros del S&P 500 y Nasdaq 100 (precio de TradingView, historial aproximado de CoinGecko). No hay tasas a mano.
+- Las categorías se administran desde Movimientos.
 - Formularios en hojas (sheets) que suben desde abajo en móvil.
 - Datos de ejemplo cargables para conocer la app.
 

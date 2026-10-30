@@ -181,6 +181,20 @@ main > .card-head, main > h1 { margin-block: 8px 2px }
 .avatar.transfer { color: var(--accent-text); background: var(--accent-soft) }
 .day { font-size: 12.5px; font-weight: 700; color: var(--ink-2); padding: 14px 8px 4px }
 .rows > .day:first-child { padding-top: 0 }
+/* Subgrupos de una cuenta, colgando debajo de ella */
+.subs { display: grid; gap: 2px; margin: 0 0 8px 58px; padding-left: 12px; border-left: 2px solid var(--surface-3) }
+.row.sub { padding: 8px 10px }
+.row.sub .t { font-weight: 600 }
+.row.sub.free .t, .row.sub.free .amt { color: var(--ink-2) }
+/* Inversiones: gráfico de cada activo y la ganancia realizada como una fila de movimiento */
+.inv-chart { display: grid; gap: 10px; margin: 10px 0 }
+.realized { display: flex; align-items: center; gap: 14px; margin-top: 14px; padding: 8px 18px 8px 8px; border-radius: var(--pill); background: var(--surface-2) }
+.realized .main { flex: 1; min-width: 0 }
+.realized .t { font-weight: 700 } .realized .s { font-size: 13px; color: var(--ink-2) }
+.realized .amt { font-weight: 800; white-space: nowrap }
+.checks { display: grid; gap: 12px; padding: 4px 0 6px }
+@media (min-width: 560px) { .checks { grid-template-columns: repeat(2, minmax(0, 1fr)) } }
+.card-head .btn .ico { width: 18px; height: 18px }
 .card.list { padding: 18px 14px }
 .card.list > .card-head { padding-inline: 8px }
 
@@ -240,7 +254,11 @@ main > .card-head, main > h1 { margin-block: 8px 2px }
   .mv-stat { padding: 12px 4px; border-radius: var(--r-md) }
   .mv-stat .label { font-size: 11.5px }
 }
+/* Inicio: los mismos botones, sin color (paleta de la app) */
+.hero-acts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; width: 100%; max-width: 560px; margin-top: 16px }
+.mv-add.plain .mv-ico { background: var(--surface); color: var(--ink) }
 .mv-find { display: grid; gap: 10px }
+.find-acts { display: flex; gap: 8px; flex-wrap: wrap }
 .search { display: flex; align-items: center; gap: 10px; min-height: 52px; padding: 0 8px 0 20px; border-radius: var(--pill); background: var(--surface); color: var(--ink-2);
   border: 1.5px solid transparent; transition: border-color .2s }
 .search:focus-within { border-color: var(--accent-text) }
@@ -318,7 +336,7 @@ form:has(input[name="type"][value="income"]:checked) .only-flow, form:has(input[
 .card .morelist button { background: var(--surface-2) }
 .kv { display: flex; justify-content: space-between; gap: 10px; font-size: 14px; padding: 4px 0 }
 .kv > b { font-weight: 700; text-align: right }
-.goals { display: grid; gap: 12px }
+.goals { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px }
 @media (min-width: 700px) { .goals { grid-template-columns: repeat(2, minmax(0, 1fr)) } }
 .goal { display: grid; gap: 8px; padding: 16px; border-radius: var(--r-lg); background: var(--surface-2); align-content: start }
 .goal-top { display: flex; align-items: center; gap: 14px }

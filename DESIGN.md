@@ -114,7 +114,7 @@ La paleta es sobria, en grises, negro, blanco y un azul oscuro, y tiene tema cla
 
 **Key Characteristics:**
 - Logo "MP" en círculo de tinta. Navegación en píldora con la sección actual rellena de tinta.
-- Saldo grande y centrado con cuatro accesos rápidos circulares debajo.
+- Inicio mínimo: saldo grande y centrado, tres botones sin color (Gasto, Ingreso, Transferencia) y la franja de cuentas. Sin gráficos ni movimientos.
 - Cuentas en una franja de tarjetas redondas que se desliza de lado.
 - Metas con anillo de progreso circular.
 - Una sola letra (Manrope) con números tabulares.
@@ -189,10 +189,16 @@ Todo lo que se toca es redondo: botones, navegación, selectores, chips y la mon
 - **Focus:** borde de 1,5px en azul.
 
 ### Accesos rápidos y filas
-Los accesos rápidos de Inicio (Gasto, Ingreso, Transferir, Meta) son círculos de 56px con ícono y su nombre debajo. Las filas de movimientos llevan un ícono en círculo de 44px (verde para ingreso, rojo para gasto, azul para transferencia) y se agrupan por día ("Hoy", "Ayer", fecha).
+Los botones de Inicio son los mismos de Movimientos (píldora con ícono en círculo), pero sin color: ícono en tinta sobre superficie. Sin cuentas, el saldo es 0 y los botones llevan a crear una. Las filas de movimientos llevan un ícono en círculo de 44px (verde para ingreso, rojo para gasto, azul para transferencia) y se agrupan por día ("Hoy", "Ayer", fecha).
 
 ### Movimientos
 Sigue el boceto del dueño, sin cambiar el orden: arriba, tres botones en píldora (+ Ingreso, − Gasto, ⇄ Transferencia) con el total del mes debajo de cada uno (ingresos, gastos y número de movimientos). En celular cada botón es un bloque redondo con el ícono encima. Después, el buscador en píldora con lupa y, debajo, el botón "Filtros" (muestra cuántos hay puestos) que despliega Desde, Hasta, Cuenta, Categoría, Tipo, Monto (desde–hasta, en la moneda base) y "Limpiar filtros". La lista muestra 15 movimientos y "Cargar más" suma 25.
+
+### Subgrupos
+Cuelgan debajo de su cuenta en Cuentas, con una línea gris a la izquierda y una fila final "Libre" en gris. En Ahorro van primero (luego Presupuesto y Metas), con el ícono de alcancía en el color de la cuenta.
+
+### Inversiones y Mercado
+Precios en dólares. Cada activo trae su gráfico con periodos en píldora; la ganancia ya realizada va al final como una fila de movimiento dentro de una píldora gris. Mercado tiene "Elegir qué ver" y "Actualizar precios", y una sección de Futuros (S&P 500 y Nasdaq 100).
 
 ### Anillo de meta
 Un círculo SVG de 64px con trazo de 6px y extremos redondeados, el porcentaje en el centro, y verde al completarse.
