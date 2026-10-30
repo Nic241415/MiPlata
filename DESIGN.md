@@ -191,6 +191,9 @@ Todo lo que se toca es redondo: botones, navegación, selectores, chips y la mon
 ### Accesos rápidos y filas
 Los accesos rápidos de Inicio (Gasto, Ingreso, Transferir, Meta) son círculos de 56px con ícono y su nombre debajo. Las filas de movimientos llevan un ícono en círculo de 44px (verde para ingreso, rojo para gasto, azul para transferencia) y se agrupan por día ("Hoy", "Ayer", fecha).
 
+### Movimientos
+Sigue el boceto del dueño, sin cambiar el orden: arriba, tres botones en píldora (+ Ingreso, − Gasto, ⇄ Transferencia) con el total del mes debajo de cada uno (ingresos, gastos y número de movimientos). En celular cada botón es un bloque redondo con el ícono encima. Después, el buscador en píldora con lupa y, debajo, el botón "Filtros" (muestra cuántos hay puestos) que despliega Desde, Hasta, Cuenta, Categoría, Tipo, Monto (desde–hasta, en la moneda base) y "Limpiar filtros". La lista muestra 15 movimientos y "Cargar más" suma 25.
+
 ### Anillo de meta
 Un círculo SVG de 64px con trazo de 6px y extremos redondeados, el porcentaje en el centro, y verde al completarse.
 

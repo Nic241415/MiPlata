@@ -60,7 +60,9 @@ const inNum = v => (v == null || v === '' || !isFinite(v)) ? '' : String(+(+v).t
 /* ---------- Estado ---------- */
 const COLS = ['accounts', 'txs', 'categories', 'trades', 'goals', 'contribs', 'recurring', 'alerts', 'settings', 'market'];
 const S = {}; COLS.forEach(c => S[c] = {});
-const UI = { view: 'inicio', range: { USDCOP: 30, EURCOP: 30, EURUSD: 30, BTC: 30 }, f: { from: '', to: '', acc: '', cat: '', type: '', q: '' }, showArchived: false, budgetMonth: today().slice(0, 7), txLimit: 150 };
+const UI = { view: 'inicio', range: { USDCOP: 30, EURCOP: 30, EURUSD: 30, BTC: 30 }, f: { from: '', to: '', acc: '', cat: '', type: '', q: '', min: '', max: '' }, showFilters: false, showArchived: false, budgetMonth: today().slice(0, 7), txLimit: 15 };
+/* Movimientos: se ven 15 al entrar y "Cargar más" suma 25. */
+const TX_FIRST = 15, TX_MORE = 25;
 let mode = 'loading', initDone = false;
 const LIVE = { status: 'pending', fx: null, coins: null, updated: null };
 const baseCur = () => S.settings.main?.base || 'COP';
@@ -303,6 +305,8 @@ const P = {
   eyeOff: 'M3 3l18 18M10.6 5.1A10 10 0 0 1 12 5c6.4 0 10 7 10 7a17 17 0 0 1-3.2 4.2M6.6 6.6C3.8 8.4 2 12 2 12s3.6 7 10 7a9.6 9.6 0 0 0 5.4-1.6M9.9 9.9a3 3 0 0 0 4.2 4.2',
   auto: 'M12 21a9 9 0 1 0 0-18v18z M12 3a9 9 0 0 1 0 18',
   in: 'M12 19V5M5 12l7 7 7-7', out: 'M12 5v14M5 12l7-7 7 7', tr: 'M7 4L3 8l4 4M3 8h14M17 20l4-4-4-4M21 16H7',
+  plus: 'M12 5v14M5 12h14', minus: 'M5 12h14',
+  search: 'M11 18a7 7 0 1 0 0-14 7 7 0 0 0 0 14zM20 20l-4.2-4.2', filter: 'M4 6h16M7 12h10M10 18h4',
 };
 const ico = (n, cls = 'ico') => `<svg class="${cls}" viewBox="0 0 24 24" aria-hidden="true"><path d="${P[n] || P.wallet}"/></svg>`;
 const ACC_TYPES = { bank: 'Banco', wallet: 'Billetera digital', cash: 'Efectivo', crypto: 'Cripto / exchange' };
@@ -392,11 +396,15 @@ function vCuentas() {
 }
 const byDateDesc = (a, b) => a.date === b.date ? ((b.created || '') > (a.created || '') ? 1 : -1) : (a.date < b.date ? 1 : -1);
 function filteredTxs() {
-  const f = UI.f; const q = f.q.trim().toLowerCase();
+  const f = UI.f; const q = f.q.trim().toLowerCase(); const base = baseCur();
+  const min = parseNum(f.min), max = parseNum(f.max);
   return Object.values(S.txs).filter(t => (!f.from || t.date >= f.from) && (!f.to || t.date <= f.to) && (!f.acc || t.accountId === f.acc || t.toAccountId === f.acc)
-    && (!f.cat || t.categoryId === f.cat) && (!f.type || t.type === f.type) && (!q || (t.note || '').toLowerCase().includes(q) || catName(t.categoryId).toLowerCase().includes(q)))
+    && (!f.cat || t.categoryId === f.cat) && (!f.type || t.type === f.type) && (!q || (t.note || '').toLowerCase().includes(q) || catName(t.categoryId).toLowerCase().includes(q))
+    && (isNaN(min) || txAmountIn(t, base) >= min) && (isNaN(max) || txAmountIn(t, base) <= max))
     .sort(byDateDesc);
 }
+/* Cuántos filtros del panel están puestos (la búsqueda va aparte). */
+const activeFilters = () => ['from', 'to', 'acc', 'cat', 'type'].filter(k => UI.f[k]).length + (UI.f.min || UI.f.max ? 1 : 0);
 /* Saldo de la cuenta justo después de cada movimiento (como la columna "saldo" de una libreta de ahorros). */
 function runningBalances(accId) {
   const acc = S.accounts[accId]; if (!acc) return {};
@@ -446,23 +454,40 @@ function catOptions(sel, withAll) {
   return (withAll ? `<option value="">Todas</option>` : '') + `<optgroup label="Gastos">${g('expense')}</optgroup><optgroup label="Ingresos">${g('income')}</optgroup>`;
 }
 const accOptions = (sel, withAll, all) => (withAll ? `<option value="">Todas</option>` : '') + accList(true).filter(a => all || !a.archived || a.id === sel).map(a => `<option value="${a.id}" ${sel === a.id ? 'selected' : ''}>${esc(a.name)} (${a.currency})</option>`).join('');
+/* Movimientos (según el boceto del dueño): tres botones para registrar con el total del mes debajo de cada uno,
+   buscador con botón de filtros desplegable, y la lista de a 15 con "Cargar más". */
 function vMovimientos() {
   const list = filteredTxs(); const base = baseCur(); const f = UI.f;
-  let inc = 0, exp = 0; for (const t of list) { if (t.type === 'income') inc += txAmountIn(t, base); if (t.type === 'expense') exp += txAmountIn(t, base); }
-  return modeNotice() + `<div class="card-head"><h1>Movimientos</h1><button class="btn primary" data-act="new-tx">Nuevo movimiento</button></div>
-  <section class="card"><div class="filters">
-    <label class="field wide"><span>Buscar</span><input id="f-q" data-filter="q" type="search" placeholder="Nota o categoría" value="${esc(f.q)}"></label>
-    <label class="field"><span>Desde</span><input id="f-from" data-filter="from" type="date" value="${f.from}"></label>
-    <label class="field"><span>Hasta</span><input id="f-to" data-filter="to" type="date" value="${f.to}"></label>
-    <label class="field"><span>Cuenta</span><select id="f-acc" data-filter="acc">${accOptions(f.acc, true, true)}</select></label>
-    <label class="field"><span>Categoría</span><select id="f-cat" data-filter="cat">${catOptions(f.cat, true)}</select></label>
-    <label class="field"><span>Tipo</span><select id="f-type" data-filter="type"><option value="">Todos</option><option value="income" ${f.type === 'income' ? 'selected' : ''}>Ingresos</option><option value="expense" ${f.type === 'expense' ? 'selected' : ''}>Gastos</option><option value="transfer" ${f.type === 'transfer' ? 'selected' : ''}>Transferencias</option></select></label>
-    <div class="field" style="align-content:end"><button class="btn" data-act="clear-filters">Limpiar filtros</button></div>
+  const key = today().slice(0, 7), mes = MESES_L[+key.slice(5) - 1], m = monthFlows(key);
+  const count = Object.values(S.txs).filter(t => t.date.startsWith(key)).length;
+  const nf = activeFilters(), open = UI.showFilters, shown = Math.min(UI.txLimit, list.length);
+  const col = (type, icon, label, statLabel, value, cls) => `<div class="mv-col">
+      <button class="mv-add ${type}" data-act="new-tx" data-type="${type}"><span class="mv-ico">${ico(icon)}</span>${label}</button>
+      <div class="mv-stat"><span class="label">${statLabel}</span><b class="${cls}">${value}</b></div></div>`;
+  return modeNotice() + `<h1>Movimientos</h1>
+  <section class="card mv-top">
+    ${col('income', 'plus', 'Ingreso', `Ingresos de ${mes}`, fmt(m.inc, base), 'pos')}
+    ${col('expense', 'minus', 'Gasto', `Gastos de ${mes}`, fmt(m.exp, base), 'neg')}
+    ${col('transfer', 'tr', 'Transferencia', `Movimientos de ${mes}`, count, '')}
+  </section>
+  <div class="mv-find">
+    <label class="search">${ico('search')}<input id="f-q" data-filter="q" type="search" placeholder="Buscar por nota o categoría" aria-label="Buscar movimientos" value="${esc(f.q)}"></label>
+    <div><button class="btn filt-btn" data-act="toggle-filters" aria-expanded="${open}" aria-controls="filters">${ico('filter')}Filtros${nf ? `<span class="count">${nf}</span>` : ''}</button></div>
+    ${open ? `<section class="card filters" id="filters" aria-label="Filtros">
+      <label class="field"><span>Desde</span><input id="f-from" data-filter="from" type="date" value="${f.from}"></label>
+      <label class="field"><span>Hasta</span><input id="f-to" data-filter="to" type="date" value="${f.to}"></label>
+      <label class="field"><span>Cuenta</span><select id="f-acc" data-filter="acc">${accOptions(f.acc, true, true)}</select></label>
+      <label class="field"><span>Categoría</span><select id="f-cat" data-filter="cat">${catOptions(f.cat, true)}</select></label>
+      <label class="field"><span>Tipo</span><select id="f-type" data-filter="type"><option value="">Todos</option><option value="income" ${f.type === 'income' ? 'selected' : ''}>Ingresos</option><option value="expense" ${f.type === 'expense' ? 'selected' : ''}>Gastos</option><option value="transfer" ${f.type === 'transfer' ? 'selected' : ''}>Transferencias</option></select></label>
+      <div class="field range"><span id="f-amt-l">Monto (en ${base})</span><div class="range-in" role="group" aria-labelledby="f-amt-l">
+        <input id="f-min" data-filter="min" inputmode="decimal" placeholder="Desde" aria-label="Monto desde" value="${esc(f.min)}"><span aria-hidden="true">–</span>
+        <input id="f-max" data-filter="max" inputmode="decimal" placeholder="Hasta" aria-label="Monto hasta" value="${esc(f.max)}"></div></div>
+      <div class="filters-foot"><button class="btn" data-act="clear-filters"${nf || f.q ? '' : ' disabled'}>Limpiar filtros</button></div>
+    </section>` : ''}
   </div>
-  <div class="stats" style="margin-top:14px"><div class="stat"><span class="label">Movimientos</span><span class="v">${list.length}</span></div><div class="stat"><span class="label">Ingresos</span><span class="v pos">${fmt(inc, base)}</span></div><div class="stat"><span class="label">Gastos</span><span class="v neg">${fmt(exp, base)}</span></div></div></section>
   ${f.acc ? `<p class="small muted">Viendo solo ${esc(S.accounts[f.acc]?.name || 'una cuenta')}: el "Saldo" de cada fila es lo que quedó en la cuenta después de cada movimiento.</p>` : ''}
-  ${ledger(list.slice(0, UI.txLimit), { acc: f.acc && S.accounts[f.acc] ? f.acc : null, months: true, emptyTitle: 'No hay movimientos con estos filtros', emptyText: 'Cambia los filtros o registra uno nuevo con el botón +.',
-    foot: list.length > UI.txLimit ? `<div class="btns" style="justify-content:center;padding:12px"><button class="btn" data-act="more-tx">Ver más</button></div>` : '' })}`;
+  ${ledger(list.slice(0, UI.txLimit), { acc: f.acc && S.accounts[f.acc] ? f.acc : null, emptyTitle: nf || f.q ? 'No hay movimientos con estos filtros' : 'Aún no hay movimientos', emptyText: nf || f.q ? 'Cambia la búsqueda o los filtros.' : 'Registra el primero con los botones de arriba.',
+    foot: list.length ? `<div class="more"><span class="small muted">Viendo ${shown} de ${list.length}</span>${list.length > shown ? `<button class="btn" data-act="more-tx">Cargar más</button>` : ''}</div>` : '' })}`;
 }
 function vInversiones() {
   const H = holdings(); const base = baseCur(); const usdcop = curRates().usdcop;
@@ -682,7 +707,7 @@ function render() {
   if (fid) { const el = document.getElementById(fid); if (el) { el.focus(); if (sel) try { el.setSelectionRange(...sel); } catch (e) { } } }
   mountCharts();
 }
-function go(v) { UI.view = v; render(); window.scrollTo(0, 0); }
+function go(v) { if (v !== UI.view) UI.txLimit = TX_FIRST; UI.view = v; render(); window.scrollTo(0, 0); }
 
 /* ---------- Bienvenida ----------
  * Aparece cada vez que se abre la app, antes del inicio de sesión o de tus datos.
@@ -1014,8 +1039,9 @@ const ACTS = {
   },
   'migrate-demo': async () => { mode = 'ready'; render(); await firstRun(true); render(); },
   'migrate-empty': async () => { mode = 'ready'; render(); await firstRun(false); render(); },
-  'clear-filters': () => { UI.f = { from: '', to: '', acc: '', cat: '', type: '', q: '' }; render(); },
-  'more-tx': () => { UI.txLimit += 150; render(); },
+  'clear-filters': () => { UI.f = { from: '', to: '', acc: '', cat: '', type: '', q: '', min: '', max: '' }; UI.txLimit = TX_FIRST; render(); },
+  'toggle-filters': () => { UI.showFilters = !UI.showFilters; render(); if (UI.showFilters) $('#f-from')?.focus(); },
+  'more-tx': () => { UI.txLimit += TX_MORE; render(); },
   'enter': () => enterApp(),
   'close-sheet': () => closeSheet(), 'confirm-yes': () => { const f = CONFIRM; CONFIRM = null; closeSheet(); f && f(); },
 };
@@ -1028,13 +1054,13 @@ document.addEventListener('click', e => {
 document.addEventListener('submit', e => { e.preventDefault(); const f = e.target; const fn = FORMS[f.dataset.form]; if (fn) fn(new FormData(f), f); });
 document.addEventListener('input', e => {
   const t = e.target;
-  if (t.dataset.filter === 'q') { UI.f.q = t.value; UI.txLimit = 150; sched(); }
+  if (t.dataset.filter === 'q') { UI.f.q = t.value; UI.txLimit = TX_FIRST; sched(); }
   if (t.id === 'reset-text') $('#reset-go').disabled = t.value.trim().toUpperCase() !== RESET_TEXT;
   if (t.id === 'tx-rate') syncFx(false, 'rate'); if (t.id === 'tx-toamount') syncFx(false, 'toamount'); if (t.id === 'tx-amount') syncFx(false, 'amount');
 });
 document.addEventListener('change', e => {
   const t = e.target;
-  if (t.dataset.filter && t.dataset.filter !== 'q') { UI.f[t.dataset.filter] = t.value; UI.txLimit = 150; render(); }
+  if (t.dataset.filter && t.dataset.filter !== 'q') { UI.f[t.dataset.filter] = t.value; UI.txLimit = TX_FIRST; render(); }
   if (t.id === 'tx-from' || t.id === 'tx-to') syncFx(false, 'acc');
   if (t.id === 'base-sel') safe(() => put('settings', 'main', { ...(S.settings.main || {}), base: t.value }));
   if (t.id === 'import-file' && t.files[0]) importData(t.files[0]);
