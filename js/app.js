@@ -495,17 +495,11 @@ const accOptions = (sel, withAll, all) => (withAll ? `<option value="">Todas</op
    buscador con botón de filtros desplegable, y la lista de a 15 con "Cargar más". */
 function vMovimientos() {
   const list = filteredTxs(); const base = baseCur(); const f = UI.f;
-  const key = today().slice(0, 7), mes = MESES_L[+key.slice(5) - 1], m = monthFlows(key);
-  const count = Object.values(S.txs).filter(t => t.date.startsWith(key)).length;
   const nf = activeFilters(), open = UI.showFilters, shown = Math.min(UI.txLimit, list.length);
-  const col = (type, icon, label, statLabel, value, cls) => `<div class="mv-col">
-      <button class="mv-add ${type}" data-act="new-tx" data-type="${type}"><span class="mv-ico">${ico(icon)}</span>${label}</button>
-      <div class="mv-stat"><span class="label">${statLabel}</span><b class="${cls}">${value}</b></div></div>`;
+  const col = (type, icon, label) => `<button class="mv-add ${type}" data-act="new-tx" data-type="${type}"><span class="mv-ico">${ico(icon)}</span>${label}</button>`;
   return modeNotice() + `<h1>Movimientos</h1>
   <section class="card mv-top">
-    ${col('income', 'plus', 'Ingreso', `Ingresos de ${mes}`, fmt(m.inc, base), 'pos')}
-    ${col('expense', 'minus', 'Gasto', `Gastos de ${mes}`, fmt(m.exp, base), 'neg')}
-    ${col('transfer', 'tr', 'Transferencia', `Movimientos de ${mes}`, count, '')}
+    ${col('income', 'plus', 'Ingreso')}${col('expense', 'minus', 'Gasto')}${col('transfer', 'tr', 'Transferencia')}
   </section>
   <div class="mv-find">
     <label class="search">${ico('search')}<input id="f-q" data-filter="q" type="search" placeholder="Buscar por nota o categoría" aria-label="Buscar movimientos" value="${esc(f.q)}"></label>
@@ -536,7 +530,7 @@ function vInversiones() {
   const trades = Object.values(S.trades).sort((a, b) => a.date < b.date ? 1 : -1);
   return modeNotice() + `<div class="card-head"><h1>Inversiones</h1><button class="btn primary" data-act="new-trade">Registrar compra o venta</button></div>
   ${H.length ? `<section class="hero"><span class="label">Valor actual de tus inversiones</span><span class="big">${fmt(tv, 'USD')}</span><span class="sub">${base !== 'USD' ? `≈ ${fmt(conv(tv, 'USD', base), base)} · ` : ''}Ganancia o pérdida sin vender: <b>${fmt(tp, 'USD', { sign: true })} (${pct(tb ? tp / tb * 100 : 0)})</b></span></section>
-  <div class="grid g2">${H.map(h => { const n = priceSeries(h.asset).length; return `<section class="card inv"><div class="card-head"><h2>${esc(assetName(h.asset))} <span class="small muted">${FUTURES[h.asset] ? 'Futuro' : esc(h.asset)}</span></h2><span class="chip ${h.pnl >= 0 ? 'pos' : 'neg'}">${pct(h.pnlPct)}</span></div>
+  <div class="grid g2">${H.map(h => { const n = priceSeries(h.asset).length; return `<section class="card inv"><div class="card-head"><div class="mk-head"><div class="mk-name">${esc(assetName(h.asset))}</div><div class="mk-price">${FUTURES[h.asset] ? 'Futuro' : esc(h.asset)}</div></div><span class="chip ${h.pnl >= 0 ? 'pos' : 'neg'}">${pct(h.pnlPct)}</span></div>
     <div class="kv"><span class="muted">Cantidad que tienes</span><b>${fmtQty(h.held, h.asset)}</b></div>
     <div class="kv"><span class="muted">Valor actual</span><b>${fmt(h.value, 'USD')}</b></div>
     <div class="kv"><span class="muted">Precio actual</span><b>${fmt(h.price, 'USD')}</b></div>
