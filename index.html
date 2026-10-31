@@ -42,10 +42,10 @@
 <div id="sheet-root"></div>
 <div id="toast-root"></div>
 
-<!-- 1) Supabase (nube)  2) Tus datos de Supabase  3) Dónde se guardan los datos  4) La app -->
+<!-- 1) Supabase (nube)  2) Tus datos de Supabase  3) Dónde se guardan los datos  4) Panel de administración  5) La app -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.4/dist/umd/supabase.js"></script>
 <script>
-  ['js/config.js', 'js/storage.js', 'js/app.js'].forEach(function (src) {
+  ['js/config.js', 'js/storage.js', 'js/admin.js', 'js/app.js'].forEach(function (src) {
     document.write('<script src="' + src + '?t=' + MP_T + '"><\/script>');
   });
 </script>

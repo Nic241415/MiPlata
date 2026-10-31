@@ -58,30 +58,50 @@ Hay sitios gratis que publican páginas como esta:
 
 **Importante:** publicar solo la página no comparte tus datos. Cada navegador guarda los suyos. Para ver los mismos datos en el celular y en el computador, necesitas lo siguiente.
 
-## Datos en la nube con correo y contraseña (Supabase)
+## Datos en la nube con usuario y contraseña (Supabase)
 
-La app ya sabe guardar en Supabase. Mientras `js/config.js` esté vacío, guarda en el navegador. Al llenarlo, pide correo y contraseña y guarda en la nube.
+La app ya sabe guardar en Supabase. Mientras `js/config.js` esté vacío, guarda en el navegador. Al llenarlo, pide **usuario** y contraseña (sin correo) y guarda en la nube. Las cuentas viejas creadas con correo siguen entrando con su correo.
+
+Por dentro, Supabase necesita un correo, así que el usuario `samuel` se guarda como `samuel@mp.local`, una dirección que no existe y a la que nunca se envía nada. Por eso hay que **apagar la confirmación por correo** (paso 2).
 
 **Una sola vez:**
 1. **Crea la tabla.** En supabase.com abre tu proyecto → **SQL Editor** → **New query**. Pega todo el archivo `supabase/schema.sql` y toca **Run**. Debe decir *Success*.
 2. **Configura el inicio de sesión.** Ve a **Authentication → URL Configuration**:
    - *Site URL*: `http://localhost:5500` (cuando la publiques, cámbiala por la dirección pública).
    - *Redirect URLs*: agrega `http://localhost:5500` y, después, tu dirección pública (por ejemplo `https://TU-USUARIO.github.io/mi-plata/`).
-   Así funciona el enlace del correo de confirmación.
+   Además, en **Authentication → Sign In / Providers → Email**, apaga **Confirm email** y guarda. Sin esto, los usuarios nuevos no pueden entrar.
 3. **Copia tus datos de conexión.** Toca el botón **Connect** arriba (o **Project Settings → API Keys**) y copia:
    - la **Project URL** (`https://xxxx.supabase.co`)
    - la clave **pública**: *anon public* o *publishable* (`sb_publishable_…` o `eyJ…`)
    Pégalas en `js/config.js`. **Nunca** uses la clave *service_role* ni la *secret*; la app las rechaza.
-4. Abre la app, toca **Crear cuenta**, confirma el correo que te llega y luego toca **Entrar**.
+4. Abre la app, escribe un usuario y una contraseña y toca **Crear cuenta**.
 5. La primera vez te pregunta cómo empezar. Elige **Subir lo que tengo en este navegador** para pasar tus datos a la nube.
 
 **Seguridad:** la tabla tiene *Row Level Security*: cada cuenta solo puede leer y cambiar sus propias filas. La clave pública sola no da acceso a nada sin iniciar sesión.
+
+### Panel de administración
+
+Quien sea administrador ve una sección más, **Administración**, con todas las personas registradas: cuándo se registraron, su último ingreso, sus cuentas con saldo, sus últimos movimientos y sus metas. **Solo puede ver**: la base de datos no le deja cambiar ni borrar datos ajenos.
+
+Para volverte administrador (una sola vez):
+1. Corre otra vez el archivo `supabase/schema.sql` completo (crea la tabla `admins` y los permisos).
+2. Crea tu usuario en la app.
+3. En **SQL Editor**, corre esta línea cambiando `TU_USUARIO` por tu usuario:
+   ```sql
+   insert into public.admins (user_id) select id from auth.users where email = lower('TU_USUARIO') || '@mp.local' on conflict do nothing;
+   ```
+   Si tu cuenta es de las viejas con correo, usa `where email = 'tu@correo.com'`.
+4. Cierra sesión y vuelve a entrar.
+
+Nadie puede volverse administrador desde la app: solo con ese paso en Supabase.
+
+**Privacidad:** la app les dice a las personas, en la pantalla de inicio de sesión y en Ajustes, que el administrador de MP puede ver sus datos. Si la usa gente fuera de tu familia, en Colombia la Ley 1581 de 2012 pide su autorización para tratar datos personales.
 
 **Costos:**
 - **Plan gratis:** 500 MB de base de datos. Para una persona sobra. Ojo: si el proyecto pasa una semana sin uso, Supabase lo pausa. Lo reactivas con un clic en el panel y tus datos no se pierden.
 - **Plan Pro:** unos 25 USD al mes. No se pausa e incluye respaldos diarios. Revisa los precios actuales en supabase.com/pricing.
 
-**Pendiente:** recuperar la contraseña olvidada todavía no está en la app. Mientras tanto, la puedes cambiar desde el panel de Supabase (*Authentication → Users*).
+**Pendiente:** recuperar la contraseña olvidada todavía no está en la app (y con usuario sin correo no hay a dónde enviar un enlace). Mientras tanto, el administrador la puede cambiar desde el panel de Supabase (*Authentication → Users*, buscando `usuario@mp.local`).
 
 ---
 
