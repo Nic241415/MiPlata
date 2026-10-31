@@ -114,7 +114,8 @@ La paleta es sobria, en grises, negro, blanco y un azul oscuro, y tiene tema cla
 
 **Key Characteristics:**
 - Logo "MP" en Bodoni Moda cursiva 800 (monograma de moda): sin fondo en la barra y en el login; dentro de un círculo de tinta en la bienvenida.
-- Navegación: barra principal con solo Inicio, Movimientos y Cuentas. En computador, el resto (Análisis, Inversiones, Mercado, Ahorro, Pagos, Ajustes) va en una barra lateral; en celular, en "Más".
+- Navegación: barra principal con Inicio, Movimientos, Cuentas y Ahorro. En computador, el resto (Análisis, Inversiones, Mercado, Pagos, Ajustes) va en un panel que se despliega a la izquierda con el botón de las tres rayas (se cierra tocando fuera o con Esc); en celular, en "Más".
+- Mercado: el nombre de la moneda o futuro va más grande que su precio, y el precio no lleva marco.
 - Inicio mínimo: saldo grande y centrado, tres botones (Ingreso, Gasto, Transferencia) y la franja de cuentas. Los gráficos y resúmenes viven en Análisis.
 - Botones de registrar (Inicio y Movimientos): ingreso con círculo azul, gasto con círculo blanco y transferencia con círculo gris (pedido del dueño).
 - Al cambiar de tema, el nuevo se abre en un círculo que crece desde el botón (View Transitions; sin animación si se pide menos movimiento).

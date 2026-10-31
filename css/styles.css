@@ -77,18 +77,25 @@ a { color: var(--accent-text); text-underline-offset: 3px }
 @media (min-width: 900px) {
   .rail { display: flex; gap: 2px; padding: 5px; margin-inline: auto; background: var(--surface); border-radius: var(--pill); overflow-x: auto; scrollbar-width: none }
   .tabbar { display: none !important }
-  /* Escritorio: barra principal arriba (Inicio, Movimientos, Cuentas) y el resto en una barra lateral. */
-  .shell { max-width: 1280px; display: grid; grid-template-columns: 216px minmax(0, 1fr); column-gap: 28px; align-items: start }
-  .top { grid-column: 1 / -1 }
-  .side { display: grid; gap: 2px; position: sticky; top: 92px; padding: 8px; background: var(--surface); border-radius: var(--r-xl) }
+  /* Escritorio: barra principal arriba (Inicio, Movimientos, Cuentas, Ahorro) y el resto en un panel que se despliega a la izquierda. */
+  .side-btn { display: grid !important }
+  .side { display: grid; align-content: start; gap: 2px; position: fixed; left: 0; top: 0; bottom: 0; width: 260px; z-index: 40; padding: 84px 12px 20px; background: var(--surface);
+    border-radius: 0 var(--r-xl) var(--r-xl) 0; transform: translateX(-105%); visibility: hidden; transition: transform .35s var(--ease), visibility 0s .35s }
+  .side-open .side { transform: none; visibility: visible; transition: transform .35s var(--ease) }
+  .side-scrim { display: block; position: fixed; inset: 0; z-index: 39; background: rgb(8 9 12 / .45); opacity: 0; pointer-events: none; transition: opacity .3s }
+  .side-open .side-scrim { opacity: 1; pointer-events: auto }
   .side button { display: flex; align-items: center; gap: 12px; padding: 10px 14px 10px 10px; border: 0; border-radius: var(--pill); background: none; color: var(--ink-2);
     font-weight: 600; font-size: 14px; text-align: left; cursor: pointer; transition: background-color .2s var(--ease), color .2s }
   .side button:hover { color: var(--ink); background: var(--surface-2) }
   .side button[aria-current="page"] { background: var(--nav-on); color: var(--nav-on-ink) }
   .side .ico { width: 18px; height: 18px }
-  main { grid-column: 2 }
-  .is-gate .side { display: none } .is-gate main { grid-column: 1 / -1 }
+  .is-gate .side, .is-gate .side-scrim { display: none }
 }
+.side-btn { display: none }
+.side-scrim { display: none }
+.mk-head { display: grid; gap: 2px }
+.mk-name { font-size: 1.3rem; font-weight: 800; letter-spacing: -0.025em; line-height: 1.15 }
+.mk-price { font-size: 1.05rem; font-weight: 600; color: var(--ink-2) }
 .rail button { border: 0; background: none; border-radius: var(--pill); padding: 8px 14px; font-weight: 600; font-size: 14px; color: var(--ink-2); cursor: pointer; white-space: nowrap;
   transition: background-color .2s var(--ease), color .2s }
 .rail button:hover { color: var(--ink); background: var(--surface-2) }
@@ -104,7 +111,7 @@ select.mini { height: 44px; padding: 0 30px 0 16px; border-radius: var(--pill); 
 main { min-width: 0; display: grid; grid-template-columns: minmax(0, 1fr); gap: 18px; align-content: start; padding-top: 4px }
 
 .tabbar { position: fixed; left: max(12px, env(safe-area-inset-left, 0px)); right: max(12px, env(safe-area-inset-right, 0px)); bottom: calc(12px + env(safe-area-inset-bottom, 0px)); z-index: 20;
-  display: grid; grid-template-columns: repeat(4, 1fr); gap: 2px; padding: 6px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--pill) }
+  display: grid; grid-template-columns: repeat(5, 1fr); gap: 2px; padding: 6px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--pill) }
 .tabbar button { border: 0; background: none; display: grid; justify-items: center; gap: 2px; font-size: 11px; font-weight: 600; color: var(--ink-2); padding: 8px 0 6px; cursor: pointer;
   border-radius: var(--pill); transition: background-color .2s var(--ease), color .2s }
 .tabbar button[aria-current="page"] { background: var(--nav-on); color: var(--nav-on-ink) }

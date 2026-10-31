@@ -22,6 +22,7 @@
 <div class="welcome" id="welcome" role="dialog" aria-modal="true" aria-labelledby="wl-title"></div>
 <div class="shell">
   <header class="top">
+    <button class="icon-btn side-btn" id="side-btn" type="button" data-act="toggle-side" aria-label="Más secciones" aria-expanded="false" aria-controls="side"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button>
     <button class="brand" type="button" data-go="inicio" aria-label="MP, ir a Inicio">MP</button>
     <nav class="rail" id="rail" aria-label="Secciones"></nav>
     <div class="top-actions">
@@ -32,6 +33,7 @@
       <button class="icon-btn" id="theme-btn" type="button" aria-label="Cambiar tema"></button>
     </div>
   </header>
+  <div class="side-scrim" data-act="close-side"></div>
   <aside class="side" id="side" aria-label="Más secciones"></aside>
   <main id="main"><div class="card empty"><b>Cargando tus datos…</b>Un momento.</div></main>
 </div>

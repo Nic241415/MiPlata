@@ -351,9 +351,9 @@ const accColor = c => SWATCH[OLD_SWATCH.indexOf(c)] || c || '#6E7A8A';
 /* ---------- Navegación ---------- */
 /* Barra principal (arriba en computador, abajo en celular): solo Inicio, Movimientos y Cuentas.
  * Lo demás va en la barra lateral (computador) o en "Más" (celular). */
-const MAIN_VIEWS = [['inicio', 'Inicio'], ['movimientos', 'Movimientos'], ['cuentas', 'Cuentas']];
+const MAIN_VIEWS = [['inicio', 'Inicio'], ['movimientos', 'Movimientos'], ['cuentas', 'Cuentas'], ['ahorro', 'Ahorro']];
 const MORE_VIEWS = [['analisis', 'Análisis', 'Patrimonio, gastos y lo que te conviene saber'], ['inversiones', 'Inversiones', 'Cripto y futuros (S&amp;P 500, Nasdaq)'], ['mercado', 'Mercado', 'Dólar, euro, futuros y cripto'],
-  ['ahorro', 'Ahorro', 'Subgrupos, presupuesto y metas'], ['pagos', 'Pagos', 'Suscripciones, arriendo, cuotas'], ['ajustes', 'Ajustes', 'Moneda, tema, respaldo']];
+  ['pagos', 'Pagos', 'Suscripciones, arriendo, cuotas'], ['ajustes', 'Ajustes', 'Moneda, tema, respaldo']];
 const TABS = [...MAIN_VIEWS, ['mas', 'Más']];
 function renderNav() {
   const cur = UI.view; const inMore = cur === 'mas' || MORE_VIEWS.some(v => v[0] === cur);
@@ -571,7 +571,7 @@ function vMercado() {
   const card = (key, label, val, q, sub) => {
     const s = priceSeries(key); const from = addDays(today(), -(UI.range[key] ?? 30)); const ss = s.filter(p => p[0] >= from);
     const first = ss[0]?.[1], ch = first ? (val - first) / first * 100 : 0;
-    return `<section class="card"><div class="card-head"><div><div class="label">${label}</div><div class="stat"><span class="v">${fmt(val, q)}</span></div>${sub ? `<div class="small muted">${sub}</div>` : ''}</div><span class="chip ${ch >= 0 ? 'pos' : 'neg'}">${pct(ch)}</span></div>
+    return `<section class="card"><div class="card-head"><div class="mk-head"><div class="mk-name">${label}</div><div class="mk-price">${fmt(val, q)}</div>${sub ? `<div class="small muted">${sub}</div>` : ''}</div><span class="chip ${ch >= 0 ? 'pos' : 'neg'}">${pct(ch)}</span></div>
       ${rangeSeg(key)}<div style="margin-top:10px">${priceChart(key, label)}</div></section>`;
   };
   const fxVal = { USDCOP: [r.usdcop, 'COP'], EURCOP: [r.usdcop * r.eurusd, 'COP'], EURUSD: [r.eurusd, 'USD'] };
@@ -840,7 +840,7 @@ function render() {
   if (fid) { const el = document.getElementById(fid); if (el) { el.focus(); if (sel) try { el.setSelectionRange(...sel); } catch (e) { } } }
   mountCharts();
 }
-function go(v) { if (v !== UI.view) UI.txLimit = TX_FIRST; UI.view = v; render(); window.scrollTo(0, 0); }
+function go(v) { document.body.classList.remove('side-open'); if (v !== UI.view) UI.txLimit = TX_FIRST; UI.view = v; render(); window.scrollTo(0, 0); }
 
 /* ---------- Bienvenida ----------
  * Aparece cada vez que se abre la app, antes del inicio de sesión o de tus datos: logo, una frase y "Entrar".
@@ -1206,6 +1206,8 @@ const ACTS = {
   'toggle-filters': () => { UI.showFilters = !UI.showFilters; render(); if (UI.showFilters) $('#f-from')?.focus(); },
   'more-tx': () => { UI.txLimit += TX_MORE; render(); },
   'enter': () => enterApp(),
+  'toggle-side': () => { const o = document.body.classList.toggle('side-open'); $('#side-btn')?.setAttribute('aria-expanded', o); },
+  'close-side': () => { document.body.classList.remove('side-open'); $('#side-btn')?.setAttribute('aria-expanded', 'false'); },
   'close-sheet': () => closeSheet(), 'confirm-yes': () => { const f = CONFIRM; CONFIRM = null; closeSheet(); f && f(); },
 };
 document.addEventListener('click', e => {
@@ -1228,7 +1230,7 @@ document.addEventListener('change', e => {
   if (t.id === 'base-sel') safe(() => put('settings', 'main', { ...(S.settings.main || {}), base: t.value }));
   if (t.id === 'import-file' && t.files[0]) importData(t.files[0]);
 });
-document.addEventListener('keydown', e => { if (e.key === 'Escape' && $('#sheet-root').innerHTML) closeSheet(); });
+document.addEventListener('keydown', e => { if (e.key === 'Escape') { if ($('#sheet-root').innerHTML) closeSheet(); else ACTS['close-side'](); } });
 
 /* ---------- Tema ---------- */
 /* Ocultar el dinero en Inicio: se recuerda en cada aparato (no se guarda en la nube). */
