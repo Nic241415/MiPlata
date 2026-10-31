@@ -496,10 +496,16 @@ const accOptions = (sel, withAll, all) => (withAll ? `<option value="">Todas</op
 function vMovimientos() {
   const list = filteredTxs(); const base = baseCur(); const f = UI.f;
   const nf = activeFilters(), open = UI.showFilters, shown = Math.min(UI.txLimit, list.length);
-  const col = (type, icon, label) => `<button class="mv-add ${type}" data-act="new-tx" data-type="${type}"><span class="mv-ico">${ico(icon)}</span>${label}</button>`;
+  const key = today().slice(0, 7), mes = MESES_L[+key.slice(5) - 1], m = monthFlows(key);
+  const count = Object.values(S.txs).filter(t => t.date.startsWith(key)).length;
+  const col = (type, icon, label, statLabel, value, cls) => `<div class="mv-col">
+      <button class="mv-add ${type}" data-act="new-tx" data-type="${type}"><span class="mv-ico">${ico(icon)}</span>${label}</button>
+      <div class="mv-stat"><span class="label">${statLabel}</span><b class="${cls}">${value}</b></div></div>`;
   return modeNotice() + `<h1>Movimientos</h1>
   <section class="card mv-top">
-    ${col('income', 'plus', 'Ingreso')}${col('expense', 'minus', 'Gasto')}${col('transfer', 'tr', 'Transferencia')}
+    ${col('income', 'plus', 'Ingreso', `Ingresos de ${mes}`, fmt(m.inc, base), 'pos')}
+    ${col('expense', 'minus', 'Gasto', `Gastos de ${mes}`, fmt(m.exp, base), 'neg')}
+    ${col('transfer', 'tr', 'Transferencia', `Movimientos de ${mes}`, count, '')}
   </section>
   <div class="mv-find">
     <label class="search">${ico('search')}<input id="f-q" data-filter="q" type="search" placeholder="Buscar por nota o categoría" aria-label="Buscar movimientos" value="${esc(f.q)}"></label>

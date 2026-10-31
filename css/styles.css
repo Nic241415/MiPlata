@@ -78,7 +78,7 @@ a { color: var(--accent-text); text-underline-offset: 3px }
   .rail { display: flex; gap: 2px; padding: 5px; margin-inline: auto; background: var(--surface); border-radius: var(--pill); overflow-x: auto; scrollbar-width: none }
   .tabbar { display: none !important }
   /* Escritorio: barra principal arriba (Inicio, Movimientos, Cuentas, Ahorro) y el resto en un panel que se despliega a la izquierda. */
-  .side-btn { display: grid !important }
+  .top .side-btn { display: grid !important }
   .side { display: grid; align-content: start; gap: 2px; position: fixed; left: 0; top: 0; bottom: 0; width: 188px; z-index: 40; padding: 84px 8px 20px; background: var(--surface);
     border-radius: 0 var(--r-xl) var(--r-xl) 0; transform: translateX(-105%); visibility: hidden; transition: transform .35s var(--ease), visibility 0s .35s }
   .side-open .side { transform: none; visibility: visible; transition: transform .35s var(--ease) }
@@ -91,7 +91,7 @@ a { color: var(--accent-text); text-underline-offset: 3px }
   .side .ico { width: 18px; height: 18px }
   .is-gate .side, .is-gate .side-scrim { display: none }
 }
-.side-btn { display: none }
+.top .side-btn { display: none }
 .side-scrim { display: none }
 .mk-head { display: grid; gap: 2px }
 .mk-name { font-size: 1.3rem; font-weight: 800; letter-spacing: -0.025em; line-height: 1.15 }
@@ -136,11 +136,12 @@ main > .card-head, main > h1 { margin-block: 8px 2px }
 .pos { color: var(--pos) } .neg { color: var(--neg) }
 
 /* Inicio: saldo grande centrado y accesos rápidos en círculo */
-.hero { background: var(--surface); border-radius: 32px; padding: 28px 18px 22px; display: grid; justify-items: center; text-align: center; gap: 8px }
+.hero { background: var(--surface); border-radius: 36px; padding: 48px 20px 36px; display: grid; justify-items: center; text-align: center; gap: 12px }
+@media (min-width: 700px) { .hero { padding: 72px 32px 52px; border-radius: 44px } }
 .hero-head { display: flex; align-items: center; gap: 4px }
 .eye { border: 0; background: none; color: var(--ink-2); cursor: pointer; width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center }
 .eye:hover { color: var(--ink); background: var(--surface-2) }
-.hero .big { font-size: clamp(2.5rem, 11vw, 4rem); font-weight: 800; letter-spacing: -0.04em; line-height: 1.02; overflow-wrap: anywhere }
+.hero .big { font-size: clamp(2.6rem, 12vw, 5.2rem); font-weight: 800; letter-spacing: -0.04em; line-height: 1.02; overflow-wrap: anywhere }
 .hero .sub { font-size: 13px; color: var(--ink-2); max-width: 60ch }
 .hero .sub b { color: var(--ink) }
 .delta { display: inline-flex; align-items: center; padding: 6px 14px; border-radius: var(--pill); font-size: 13px; font-weight: 700 }
@@ -285,7 +286,7 @@ main > .card-head, main > h1 { margin-block: 8px 2px }
 .mv-add.income .mv-ico { color: var(--in-ink); background: var(--in-bg) }
 .mv-add.expense .mv-ico { color: var(--out-ink); background: var(--out-bg); border: 1px solid var(--line) }
 .mv-add.transfer .mv-ico { color: var(--tr-ink); background: var(--tr-bg) }
-.mv-stat { display: grid; gap: 4px; padding: 14px 16px; border-radius: var(--r-lg); background: var(--surface-2); min-width: 0; text-align: center; container-type: inline-size }
+.mv-stat { display: grid; gap: 4px; padding: 6px 2px; min-width: 0; text-align: center; container-type: inline-size }
 .mv-stat .label { font-size: 12.5px }
 /* La cifra se achica con la casilla para no partirse a mitad de número. */
 .mv-stat b { font-size: clamp(10.5px, 13.5cqi, 1.3rem); font-weight: 800; letter-spacing: -0.02em; white-space: nowrap; line-height: 1.15 }
@@ -295,7 +296,7 @@ main > .card-head, main > h1 { margin-block: 8px 2px }
   .mv-add { flex-direction: column; gap: 6px; padding: 12px 4px; border-radius: var(--r-lg); font-size: 12.5px }
 }
 /* Inicio: los mismos botones que en Movimientos */
-.hero-acts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; width: 100%; max-width: 560px; margin-top: 16px }
+.hero-acts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; width: 100%; max-width: 640px; margin-top: 28px }
 .mv-find { display: grid; gap: 10px }
 .find-acts { display: flex; gap: 8px; flex-wrap: wrap }
 .search { display: flex; align-items: center; gap: 10px; min-height: 52px; padding: 0 8px 0 20px; border-radius: var(--pill); background: var(--surface); color: var(--ink-2);
