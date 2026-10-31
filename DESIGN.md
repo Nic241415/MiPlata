@@ -113,8 +113,11 @@ MP es tranquila, redonda y minimalista. Cada cosa que se toca es un círculo o u
 La paleta es sobria, en grises, negro, blanco y un azul oscuro, y tiene tema claro y oscuro (por defecto sigue al sistema). El color de estado aparece solo cuando significa algo: verde para ingresos, rojo para gastos y ámbar para avisos. No hay sombras; la profundidad viene de los escalones de gris entre el fondo y las superficies.
 
 **Key Characteristics:**
-- Logo "MP" en círculo de tinta. Navegación en píldora con la sección actual rellena de tinta.
-- Inicio mínimo: saldo grande y centrado, tres botones sin color (Gasto, Ingreso, Transferencia) y la franja de cuentas. Sin gráficos ni movimientos.
+- Logo "MP" en Bodoni Moda cursiva 800 (monograma de moda): sin fondo en la barra y en el login; dentro de un círculo de tinta en la bienvenida.
+- Navegación: barra principal con solo Inicio, Movimientos y Cuentas. En computador, el resto (Análisis, Inversiones, Mercado, Ahorro, Pagos, Ajustes) va en una barra lateral; en celular, en "Más".
+- Inicio mínimo: saldo grande y centrado, tres botones (Ingreso, Gasto, Transferencia) y la franja de cuentas. Los gráficos y resúmenes viven en Análisis.
+- Botones de registrar (Inicio y Movimientos): ingreso con círculo azul, gasto con círculo blanco y transferencia con círculo gris (pedido del dueño).
+- Al cambiar de tema, el nuevo se abre en un círculo que crece desde el botón (View Transitions; sin animación si se pide menos movimiento).
 - Cuentas en una franja de tarjetas redondas que se desliza de lado.
 - Metas con anillo de progreso circular.
 - Una sola letra (Manrope) con números tabulares.
@@ -189,7 +192,10 @@ Todo lo que se toca es redondo: botones, navegación, selectores, chips y la mon
 - **Focus:** borde de 1,5px en azul.
 
 ### Accesos rápidos y filas
-Los botones de Inicio son los mismos de Movimientos (píldora con ícono en círculo), pero sin color: ícono en tinta sobre superficie. Sin cuentas, el saldo es 0 y los botones llevan a crear una. Las filas de movimientos llevan un ícono en círculo de 44px (verde para ingreso, rojo para gasto, azul para transferencia) y se agrupan por día ("Hoy", "Ayer", fecha).
+Los botones de Inicio son los mismos de Movimientos (píldora con ícono en círculo), en el orden Ingreso, Gasto, Transferencia: círculo azul, blanco y gris. Sin cuentas, el saldo es 0 y los botones llevan a crear una.
+
+### Análisis
+Cuatro cifras clave (patrimonio y su cambio en el mes, ahorro y tasa de ahorro, gasto promedio por día, meses que alcanza el dinero), el resumen del mes, la evolución del patrimonio, ingresos y gastos de 6 meses, gastos por categoría en barras, una lista de "Lo que te conviene saber" y los gráficos por divisa y por tipo de cuenta. Las filas de movimientos llevan un ícono en círculo de 44px (verde para ingreso, rojo para gasto, azul para transferencia) y se agrupan por día ("Hoy", "Ayer", fecha).
 
 ### Movimientos
 Sigue el boceto del dueño, sin cambiar el orden: arriba, tres botones en píldora (+ Ingreso, − Gasto, ⇄ Transferencia) con el total del mes debajo de cada uno (ingresos, gastos y número de movimientos). En celular cada botón es un bloque redondo con el ícono encima. Después, el buscador en píldora con lupa y, debajo, el botón "Filtros" (muestra cuántos hay puestos) que despliega Desde, Hasta, Cuenta, Categoría, Tipo, Monto (desde–hasta, en la moneda base) y "Limpiar filtros". La lista muestra 15 movimientos y "Cargar más" suma 25.
@@ -204,7 +210,7 @@ Precios en dólares. Cada activo trae su gráfico con periodos en píldora; la g
 Un círculo SVG de 64px con trazo de 6px y extremos redondeados, el porcentaje en el centro, y verde al completarse.
 
 ### Bienvenida
-Logo "MP" en un círculo de 120px que aparece creciendo suavemente, la frase "Tu dinero, simple.", el dólar, el euro y el bitcoin del día en píldoras que suben una tras otra, y el botón "Entrar" en píldora. Aparece cada vez que se abre la app.
+Logo "MP" en Bodoni cursiva dentro de un círculo de 140px que aparece creciendo suavemente, la frase "Tu dinero, simple." y el botón "Entrar" en píldora, que suben uno tras otro. Sin cotizaciones. Aparece cada vez que se abre la app.
 
 ## Do's and Don'ts
 

@@ -325,6 +325,7 @@ const P = {
   pagos: 'M17 2l4 4-4 4M3 11V9a3 3 0 0 1 3-3h15M7 22l-4-4 4-4M21 13v2a3 3 0 0 1-3 3H3',
   ajustes: 'M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0M16 4v4M10 10v4M18 16v4',
   mas: 'M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z',
+  analisis: 'M21 12.5A9 9 0 1 1 11.5 3v9.5zM15 2.6A9 9 0 0 1 21.4 9H15z',
   bank: 'M3 10l9-6 9 6M5 10v8M9.5 10v8M14.5 10v8M19 10v8M3 20h18',
   wallet: 'M3 7h18v12H3zM3 7l3-3h12l3 3M16 13h2',
   cash: 'M2 7h20v10H2zM12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM5 10v.01M19 14v.01',
@@ -348,11 +349,19 @@ const OLD_SWATCH = ['#3657D6', '#B8418F', '#0E8F7E', '#6D5BD0', '#D07300', '#7A8
 const accColor = c => SWATCH[OLD_SWATCH.indexOf(c)] || c || '#6E7A8A';
 
 /* ---------- Navegación ---------- */
-const VIEWS = [['inicio', 'Inicio'], ['cuentas', 'Cuentas'], ['movimientos', 'Movimientos'], ['inversiones', 'Inversiones'], ['mercado', 'Mercado'], ['ahorro', 'Ahorro'], ['pagos', 'Pagos'], ['ajustes', 'Ajustes']];
-const TABS = [['inicio', 'Inicio'], ['movimientos', 'Movimientos'], ['mercado', 'Mercado'], ['ahorro', 'Ahorro'], ['mas', 'Más']];
+/* Barra principal (arriba en computador, abajo en celular): solo Inicio, Movimientos y Cuentas.
+ * Lo demás va en la barra lateral (computador) o en "Más" (celular). */
+const MAIN_VIEWS = [['inicio', 'Inicio'], ['movimientos', 'Movimientos'], ['cuentas', 'Cuentas']];
+const MORE_VIEWS = [['analisis', 'Análisis', 'Patrimonio, gastos y lo que te conviene saber'], ['inversiones', 'Inversiones', 'Cripto y futuros (S&amp;P 500, Nasdaq)'], ['mercado', 'Mercado', 'Dólar, euro, futuros y cripto'],
+  ['ahorro', 'Ahorro', 'Subgrupos, presupuesto y metas'], ['pagos', 'Pagos', 'Suscripciones, arriendo, cuotas'], ['ajustes', 'Ajustes', 'Moneda, tema, respaldo']];
+const TABS = [...MAIN_VIEWS, ['mas', 'Más']];
 function renderNav() {
-  const cur = UI.view; const inMore = ['cuentas', 'inversiones', 'pagos', 'ajustes', 'mas'].includes(cur);
-  $('#rail').innerHTML = VIEWS.map(([k, l]) => `<button data-go="${k}" ${cur === k ? 'aria-current="page"' : ''}>${l}</button>`).join('');
+  const cur = UI.view; const inMore = cur === 'mas' || MORE_VIEWS.some(v => v[0] === cur);
+  const on = k => cur === k ? 'aria-current="page"' : '';
+  $('#rail').innerHTML = MAIN_VIEWS.map(([k, l]) => `<button data-go="${k}" ${on(k)}>${l}</button>`).join('');
+  let side = $('#side');
+  if (!side) { side = document.createElement('aside'); side.id = 'side'; side.className = 'side'; side.setAttribute('aria-label', 'Más secciones'); $('#main').before(side); } // index.html viejo en caché
+  side.innerHTML = MORE_VIEWS.map(([k, l]) => `<button data-go="${k}" ${on(k)}>${ico(k)}${l}</button>`).join('');
   $('#tabbar').innerHTML = TABS.map(([k, l]) => `<button data-go="${k}" ${(cur === k || (k === 'mas' && inMore)) ? 'aria-current="page"' : ''}>${ico(k)}<span>${l}</span></button>`).join('');
   $('#base-sel').value = baseCur();
 }
@@ -378,15 +387,15 @@ function vInicio() {
   const base = baseCur();
   const accs = accList(false); const nw = netWorth();
   const demo = Object.values(S.accounts).some(a => a.demo); const b = balances();
-  // Botones sin color, de la paleta de la app. Sin cuentas, llevan a crear una (txForm lo hace solo).
-  const qa = (icon, label, type) => `<button class="mv-add plain" data-act="new-tx" data-type="${type}"><span class="mv-ico">${ico(icon)}</span>${label}</button>`;
+  // Los mismos botones de Movimientos (ingreso azul, gasto blanco, transferencia gris). Sin cuentas, llevan a crear una (txForm lo hace solo).
+  const qa = (icon, label, type) => `<button class="mv-add ${type}" data-act="new-tx" data-type="${type}"><span class="mv-ico">${ico(icon)}</span>${label}</button>`;
   return modeNotice() + `
   ${demo ? `<div class="notice warn"><span class="dot"></span><div class="grow"><b>Estás viendo datos de ejemplo.</b> Cuando quieras empezar con tus cifras reales, bórralos.</div><button class="btn sm" data-act="ask-clear-demo">Borrar ejemplo</button></div>` : ''}
   <section class="hero">
     <div class="hero-head"><span class="label">Patrimonio neto · ${base}</span>
       <button class="eye" data-act="toggle-hide" aria-pressed="${moneyHidden()}" aria-label="${moneyHidden() ? 'Mostrar el dinero' : 'Ocultar el dinero'}" title="${moneyHidden() ? 'Mostrar' : 'Ocultar'}">${ico(moneyHidden() ? 'eyeOff' : 'eye')}</button></div>
     <span class="big">${moneyHidden() ? `${FIAT[base].sym} ••••••` : fmt(nw, base)}</span>
-    <div class="hero-acts">${qa('minus', 'Gasto', 'expense')}${qa('plus', 'Ingreso', 'income')}${qa('tr', 'Transferencia', 'transfer')}</div>
+    <div class="hero-acts">${qa('plus', 'Ingreso', 'income')}${qa('minus', 'Gasto', 'expense')}${qa('tr', 'Transferencia', 'transfer')}</div>
   </section>
   <div class="notices">${avisos()}</div>
   <section><div class="sec-head"><h2>Tus cuentas</h2>${accs.length ? '<button class="btn sm ghost" data-go="cuentas">Ver todas</button>' : ''}</div>
@@ -674,10 +683,73 @@ function vMigrate() {
     </div></section></div>`;
 }
 function vMas() {
-  const items = [['cuentas', 'Cuentas y billeteras', 'Bancos, Nequi, efectivo, cripto'], ['inversiones', 'Inversiones', 'Cripto y futuros (S&amp;P 500, Nasdaq)'], ['pagos', 'Pagos recurrentes', 'Suscripciones, arriendo, cuotas'], ['ajustes', 'Ajustes', 'Moneda, tema, respaldo']];
-  return `<h1>Más</h1><div class="morelist">${items.map(([k, t, s]) => `<button data-go="${k}"><span class="avatar" style="color:var(--accent-text)">${ico(k)}</span><span><b>${t}</b><span>${s}</span></span></button>`).join('')}</div>`;
+  return `<h1>Más</h1><div class="morelist">${MORE_VIEWS.map(([k, t, s]) =>`<button data-go="${k}"><span class="avatar" style="color:var(--accent-text)">${ico(k)}</span><span><b>${t}</b><span>${s}</span></span></button>`).join('')}</div>`;
 }
-const VIEW_FN = { inicio: vInicio, cuentas: vCuentas, movimientos: vMovimientos, inversiones: vInversiones, mercado: vMercado, ahorro: vAhorro, pagos: vPagos, ajustes: vAjustes, mas: vMas };
+/* ---------- Análisis ----------
+ * Todo lo que antes estaba en Inicio (evolución, resumen del mes, gráficos) y más: tendencias de 6 meses,
+ * dónde se va el dinero y datos útiles calculados con lo que la persona registró. */
+const MONTHLY = { weekly: 52 / 12, biweekly: 26 / 12, monthly: 1, quarterly: 1 / 3, yearly: 1 / 12 };
+function analysis() {
+  const base = baseCur(), T = today(), key = T.slice(0, 7), prevKey = addMonths(key + '-01', -1).slice(0, 7);
+  const f = monthFlows(key), pf = monthFlows(prevKey);
+  const nw = netWorth(), d = nw - netWorth(addDays(key + '-01', -1));
+  const day = +T.slice(8), dim = new Date(+key.slice(0, 4), +key.slice(5), 0).getDate();
+  const past = [1, 2, 3, 4, 5, 6].map(i => monthFlows(addMonths(key + '-01', -i).slice(0, 7))).filter(m => m.inc || m.exp);
+  const avgExp = past.length ? past.reduce((s, m) => s + m.exp, 0) / past.length : 0;
+  const avgSave = past.length ? past.reduce((s, m) => s + m.save, 0) / past.length : 0, avgInc = past.length ? past.reduce((s, m) => s + m.inc, 0) / past.length : 0;
+  const b = balances(); let liquid = 0; for (const a of Object.values(S.accounts)) if (a.type !== 'crypto') liquid += conv(b[a.id], a.currency, base);
+  const cats = Object.entries(f.byCat).sort((x, y) => y[1] - x[1]);
+  const biggest = Object.values(S.txs).filter(t => t.type === 'expense' && t.date.startsWith(key)).sort((x, y) => txAmountIn(y, base) - txAmountIn(x, base))[0];
+  const recurring = Object.values(S.recurring).filter(r => r.active !== false).reduce((s, r) => s + conv(r.amount, r.currency, base) * (MONTHLY[r.freq] || 1), 0);
+  const subs = accList(false).reduce((s, a) => { const sb = subBalances(a); return s + Object.values(sb).reduce((x, v) => x + conv(v, a.currency, base), 0); }, 0);
+  const nSubs = accList(false).reduce((s, a) => s + subList(a).length, 0);
+  const H = holdings(); const inv = H.reduce((s, h) => s + h.value, 0), invB = H.reduce((s, h) => s + h.basis, 0);
+  return { base, key, prevKey, f, pf, nw, d, day, dim, avgExp, avgSave, avgInc, liquid, cats, biggest, recurring, subs, nSubs, inv, invB, months: past.length };
+}
+function vAnalisis() {
+  if (!Object.keys(S.accounts).length) return modeNotice() + `<h1>Análisis</h1><div class="card empty"><b>Aún no hay nada que analizar</b>Crea tus cuentas y registra movimientos: aquí verás cómo evoluciona tu dinero.</div>`;
+  const A = analysis(), { base, f } = A; const mes = MESES_L[+A.key.slice(5) - 1], mesP = MESES_L[+A.prevKey.slice(5) - 1];
+  const rate = f.inc > 0 ? f.save / f.inc * 100 : null; const perDay = f.exp / A.day; const proj = perDay * A.dim;
+  const runway = A.avgExp > 0 ? A.liquid / A.avgExp : null;
+  const kpi = (label, value, sub, cls = '') => `<div class="kpi"><span class="label">${label}</span><b class="${cls}">${value}</b>${sub ? `<span class="small muted">${sub}</span>` : ''}</div>`;
+  const tips = [];
+  if (A.pf.exp > 0 && f.exp > 0) { const ch = (proj - A.pf.exp) / A.pf.exp * 100; tips.push([ch > 5 ? 'neg' : ch < -5 ? 'pos' : '', `A este ritmo terminarás ${mes} con gastos de <b>${fmt(proj, base)}</b>, ${Math.abs(ch) < 5 ? `parecido a ${mesP}` : `un ${num(Math.abs(ch), 0)} % ${ch > 0 ? 'más' : 'menos'} que en ${mesP}`} (${fmt(A.pf.exp, base)}).`]); }
+  if (A.cats.length) tips.push(['', `Donde más gastas este mes: <b>${esc(catName(A.cats[0][0]))}</b>, ${fmt(A.cats[0][1], base)} (${num(A.cats[0][1] / f.exp * 100, 0)} % de tus gastos).`]);
+  if (A.biggest) tips.push(['', `Tu gasto más grande del mes: <b>${esc(A.biggest.note || catName(A.biggest.categoryId))}</b>, ${fmt(txAmountIn(A.biggest, base), base)} el ${fdate(A.biggest.date).slice(0, -5)}.`]);
+  if (runway != null) tips.push([runway < 3 ? 'neg' : runway >= 6 ? 'pos' : '', `Con tu dinero disponible (sin cripto) cubres <b>${num(runway, 1)} ${runway >= 1 && runway < 2 ? 'mes' : 'meses'}</b> de gastos promedio. Lo recomendado es tener de 3 a 6 meses.`]);
+  if (A.months) tips.push([A.avgSave >= 0 ? 'pos' : 'neg', `En los últimos ${A.months} meses ${A.avgSave >= 0 ? 'ahorraste' : 'gastaste de más'} en promedio <b>${fmt(Math.abs(A.avgSave), base)}</b> al mes${A.avgInc > 0 ? ` (${num(Math.abs(A.avgSave) / A.avgInc * 100, 0)} % de tus ingresos)` : ''}.`]);
+  if (A.recurring > 0) tips.push(['', `Tus pagos recurrentes suman unos <b>${fmt(A.recurring, base)}</b> al mes${f.inc > 0 ? `, el ${num(A.recurring / f.inc * 100, 0)} % de lo que te entró en ${mes}` : ''}.`]);
+  if (A.nSubs) tips.push(['', `Tienes <b>${fmt(A.subs, base)}</b> apartado en ${A.nSubs} ${A.nSubs === 1 ? 'subgrupo' : 'subgrupos'}.`]);
+  if (A.inv > 0) tips.push([A.inv >= A.invB ? 'pos' : 'neg', `Tus inversiones valen <b>${fmt(A.inv, 'USD')}</b> (${pct(A.invB ? (A.inv - A.invB) / A.invB * 100 : 0)} frente a lo que pagaste).`]);
+  const total = f.exp || 1;
+  return modeNotice() + `<div class="card-head"><h1>Análisis</h1><span class="small muted">Cifras en ${base} · ${mes}</span></div>
+  <div class="kpis">
+    ${kpi('Patrimonio neto', fmt(A.nw, base), `${fmt(A.d, base, { sign: true })} en ${mes}`, '')}
+    ${kpi(`Ahorro de ${mes}`, fmt(f.save, base), rate != null ? `${num(rate, 0)} % de tus ingresos` : 'Aún sin ingresos este mes', f.save >= 0 ? 'pos' : 'neg')}
+    ${kpi('Gasto promedio por día', fmt(perDay, base), `Llevas ${A.day} ${A.day === 1 ? 'día' : 'días'} del mes`)}
+    ${kpi('Tu dinero alcanza para', runway == null ? '—' : `${num(runway, 1)} meses`, 'Con tu gasto promedio', runway == null ? '' : runway < 3 ? 'neg' : '')}
+  </div>
+  <div class="stats">
+    <div class="stat"><span class="label">Ingresos de ${mes}</span><span class="v pos">${fmt(f.inc, base)}</span></div>
+    <div class="stat"><span class="label">Gastos de ${mes}</span><span class="v neg">${fmt(f.exp, base)}</span></div>
+    <div class="stat"><span class="label">Te queda</span><span class="v ${f.save >= 0 ? '' : 'neg'}">${fmt(f.save, base)}</span></div>
+  </div>
+  <section class="card"><div class="card-head"><h2>Evolución del patrimonio</h2><span class="small muted">Cierre de cada mes</span></div><div class="chart-box"><canvas id="ch-nw" aria-label="Gráfico de evolución del patrimonio"></canvas></div></section>
+  <section class="card"><div class="card-head"><h2>Ingresos y gastos</h2><span class="small muted">Últimos 6 meses</span></div><div class="chart-box"><canvas id="ch-flow" aria-label="Ingresos y gastos de los últimos 6 meses"></canvas></div>
+    <div class="legend"><span><i style="background:var(--pos)"></i>Ingresos</span><span><i style="background:var(--neg)"></i>Gastos</span></div></section>
+  <div class="grid g2">
+    <section class="card"><div class="card-head"><h2>Gastos por categoría</h2><span class="small muted">${mes}</span></div>
+      ${A.cats.length ? `<div class="catbars">${A.cats.map(([c, v]) => `<div class="catbar"><div class="kv"><span>${esc(catName(c))}</span><b>${fmt(v, base)} <span class="muted small">${num(v / total * 100, 0)} %</span></b></div><div class="bar"><i style="width:${(v / A.cats[0][1] * 100).toFixed(1)}%"></i></div></div>`).join('')}</div>`
+        : '<div class="empty"><b>Sin gastos este mes</b>Cuando registres gastos, verás aquí en qué se va tu dinero.</div>'}</section>
+    <section class="card"><h2>Lo que te conviene saber</h2>${tips.length ? `<ul class="tips">${tips.map(([c, t]) => `<li><span class="dot ${c}"></span><p>${t}</p></li>`).join('')}</ul>` : '<div class="empty"><b>Aún faltan datos</b>Registra movimientos de un par de meses para ver consejos.</div>'}</section>
+  </div>
+  <div class="grid g2">
+    <section class="card"><h2>Por divisa</h2><div class="chart-box short"><canvas id="ch-cur" aria-label="Distribución por divisa"></canvas></div><div class="legend" id="lg-cur"></div></section>
+    <section class="card"><h2>Por tipo de cuenta</h2><div class="chart-box short"><canvas id="ch-type" aria-label="Distribución por tipo de cuenta"></canvas></div></section>
+  </div>
+  <p class="small muted center">${esc(rateLine())}</p>`;
+}
+const VIEW_FN = { inicio: vInicio, cuentas: vCuentas, movimientos: vMovimientos, analisis: vAnalisis, inversiones: vInversiones, mercado: vMercado, ahorro: vAhorro, pagos: vPagos, ajustes: vAjustes, mas: vMas };
 
 /* ---------- Gráficos ---------- */
 const CH = [];
@@ -692,11 +764,52 @@ function baseOpts(cur, extra = {}) {
 }
 /* Tooltip plano con los colores del tema (tinta sobre fondo invertido, sin esquinas redondas). */
 const tipStyle = () => ({ backgroundColor: cssv('--ink'), titleColor: cssv('--bg'), bodyColor: cssv('--bg'), cornerRadius: 2, padding: 10, displayColors: false,
-  titleFont: { family: cssv('--f-body'), weight: '600' }, bodyFont: { family: cssv('--f-mono') } });
+  titleFont: { family: cssv('--f'), weight: '600' }, bodyFont: { family: cssv('--f') } });
+/* Gráficos de Análisis: evolución del patrimonio, ingresos y gastos por mes, por divisa y por tipo de cuenta. */
+function mountAnalysisCharts() {
+  const base = baseCur(); const C = ['--c1', '--c2', '--c3', '--c4', '--c5', '--c6'].map(cssv);
+  const nwC = $('#ch-nw');
+  if (nwC) {
+    const T = today(); let first = T;
+    for (const a of Object.values(S.accounts)) if (a.since && a.since < first) first = a.since;
+    for (const t of Object.values(S.txs)) if (t.date < first) first = t.date;
+    const pts = []; let m = addMonths(T.slice(0, 8) + '01', -11); if (m < first.slice(0, 8) + '01') m = first.slice(0, 8) + '01';
+    while (m <= T) { const end = addDays(addMonths(m, 1), -1); if (end >= T) break; pts.push([end, MESES[+end.slice(5, 7) - 1] + ' ' + end.slice(2, 4)]); m = addMonths(m, 1); }
+    pts.push([T, 'Hoy']);
+    const acc = cssv('--chart');
+    CH.push(new Chart(nwC, { type: 'line', data: { labels: pts.map(p => p[1]), datasets: [{ data: pts.map(p => netWorth(p[0] === T ? null : p[0])), borderColor: acc, backgroundColor: hexA(acc, .1), fill: true, tension: .35, pointRadius: 0, pointHoverRadius: 6, pointBackgroundColor: acc, borderWidth: 2 }] }, options: baseOpts(base) }));
+  }
+  const flC = $('#ch-flow');
+  if (flC) {
+    const keys = [5, 4, 3, 2, 1, 0].map(i => addMonths(today().slice(0, 8) + '01', -i).slice(0, 7)); const fl = keys.map(k => monthFlows(k));
+    const bar = (data, col) => ({ data, backgroundColor: col, borderRadius: 999, borderSkipped: false, maxBarThickness: 14 });
+    CH.push(new Chart(flC, { type: 'bar', data: { labels: keys.map(k => MESES[+k.slice(5) - 1]), datasets: [{ label: 'Ingresos', ...bar(fl.map(x => x.inc), cssv('--pos')) }, { label: 'Gastos', ...bar(fl.map(x => x.exp), cssv('--neg')) }] },
+      options: baseOpts(base, { plugins: { legend: { display: false }, tooltip: { ...tipStyle(), callbacks: { label: c => ` ${c.dataset.label}: ${fmt(c.parsed.y, base)}` } } } }) }));
+  }
+  const curC = $('#ch-cur');
+  if (curC) {
+    const b = balances(); const g = {};
+    for (const a of Object.values(S.accounts)) { const v = conv(b[a.id], a.currency, base); if (v > 0) g[a.currency] = (g[a.currency] || 0) + v; }
+    const e = Object.entries(g).sort((x, y) => y[1] - x[1]); const tot = e.reduce((s, x) => s + x[1], 0);
+    CH.push(new Chart(curC, { type: 'doughnut', data: { labels: e.map(x => x[0]), datasets: [{ data: e.map(x => x[1]), backgroundColor: e.map((_, i) => C[i % C.length]), borderColor: cssv('--surface'), borderWidth: 2 }] },
+      options: { responsive: true, maintainAspectRatio: false, animation: false, cutout: '74%', plugins: { legend: { display: false }, tooltip: { ...tipStyle(), callbacks: { label: c => ` ${c.label}: ${fmt(c.parsed, base)} (${num(c.parsed / tot * 100, 1)} %)` } } } } }));
+    $('#lg-cur').innerHTML = e.map((x, i) => `<span><i style="background:${C[i % C.length]}"></i>${x[0]} · ${num(x[1] / tot * 100, 1)} %</span>`).join('');
+  }
+  const tC = $('#ch-type');
+  if (tC) {
+    const b = balances(); const g = {};
+    for (const a of Object.values(S.accounts)) g[a.type] = (g[a.type] || 0) + conv(b[a.id], a.currency, base);
+    const e = Object.entries(g).sort((x, y) => y[1] - x[1]);
+    CH.push(new Chart(tC, { type: 'bar', data: { labels: e.map(x => ACC_TYPES[x[0]]), datasets: [{ data: e.map(x => x[1]), backgroundColor: e.map((_, i) => C[i % C.length]), borderRadius: 999, borderSkipped: false, barThickness: 16 }] },
+      options: baseOpts(base, { indexAxis: 'y', plugins: { legend: { display: false }, tooltip: { ...tipStyle(), callbacks: { label: c => ' ' + fmt(c.parsed.x, base) } } },
+        scales: { x: { grid: { display: false }, ticks: { color: cssv('--ink-2'), maxTicksLimit: 4, callback: v => fmtShort(v, base) }, border: { display: false } }, y: { grid: { display: false }, ticks: { color: cssv('--ink') }, border: { display: false } } } }) }));
+  }
+}
 function mountCharts() {
   while (CH.length) CH.pop().destroy();
   if (!window.Chart) return;
-  Chart.defaults.font.family = cssv('--f-body'); Chart.defaults.font.size = 12;
+  Chart.defaults.font.family = cssv('--f'); Chart.defaults.font.size = 12;
+  mountAnalysisCharts();
   // Gráficos de precio: cada <canvas data-chart="CLAVE"> (tasas, criptomonedas y futuros).
   for (const el of document.querySelectorAll('canvas[data-chart]')) {
     const key = el.dataset.chart, days = UI.range[key] ?? 30;
@@ -730,20 +843,9 @@ function render() {
 function go(v) { if (v !== UI.view) UI.txLimit = TX_FIRST; UI.view = v; render(); window.scrollTo(0, 0); }
 
 /* ---------- Bienvenida ----------
- * Aparece cada vez que se abre la app, antes del inicio de sesión o de tus datos.
- * Muestra las cotizaciones de hoy. No guarda nada: los datos se siguen cargando
- * por detrás mientras la persona lee. */
+ * Aparece cada vez que se abre la app, antes del inicio de sesión o de tus datos: logo, una frase y "Entrar".
+ * No guarda nada: los datos se siguen cargando por detrás mientras la persona lee. */
 let WELCOME = true;
-const WR = { usdcop: null, eurusd: null, btc: null, date: null, live: false };
-function welcomeRows() {
-  const r = curRates(); const usdcop = WR.usdcop ?? r.usdcop, eurusd = WR.eurusd ?? r.eurusd, btc = WR.btc ?? coinUsd('BTC');
-  const cop = v => v == null || !isFinite(v) ? '—' : '$ ' + num(v, 2, 2);
-  return [['Dólar', 'USD/COP', cop(usdcop)], ['Euro', 'EUR/COP', cop(usdcop * eurusd)], ['Bitcoin', 'BTC/USD', btc == null ? '—' : fmt(btc, 'USD')]];
-}
-function welcomeNote() {
-  if (WR.live) return '<span class="live"></span>En vivo · consultado hace un momento';
-  const d = WR.date || curRates().updated; return `<span class="live off"></span>Último dato conocido${d ? ' · ' + fdate(d.slice(0, 10)) : ''}`;
-}
 function renderWelcome() {
   if (!WELCOME) return;
   let el = $('#welcome');
@@ -755,30 +857,12 @@ function renderWelcome() {
   document.body.classList.add('is-welcome'); el.hidden = false;
   el.innerHTML = `<div class="wl">
     <span class="wl-logo" aria-hidden="true">MP</span>
-    <div><h1 class="wl-title" id="wl-title">Tu dinero, simple.</h1>
-      <p class="wl-lead">Cuentas, gastos, cripto y metas en un solo lugar.</p></div>
-    <div class="wl-rates" aria-label="Cotizaciones de hoy">
-      ${welcomeRows().map(([n, p, v], i) => `<div class="wl-rate" style="--i:${i}"><span>${n}</span><b data-wr="${i}">${v}</b></div>`).join('')}
-    </div>
-    <p class="wl-note" id="wl-note">${welcomeNote()}</p>
+    <div class="wl-text"><h1 class="wl-title" id="wl-title">Tu dinero, simple.</h1>
+      <p class="wl-lead">Cuentas, gastos, inversiones y metas en un solo lugar.</p></div>
     <div class="wl-go"><button class="btn primary lg" type="button" data-act="enter">Entrar</button>
       <p>Todo lo escribes tú. Nunca te pedimos claves de tus bancos.</p></div>
   </div>`;
   el.querySelector('[data-act="enter"]').focus({ preventScroll: true });
-}
-/* Actualiza las cifras sin volver a dibujar (así la animación de "impresión" no se repite). */
-function refreshWelcome() {
-  if (!WELCOME) return;
-  welcomeRows().forEach(([, , v], i) => { const s = document.querySelector(`[data-wr="${i}"]`); if (s) s.textContent = v; });
-  const n = $('#wl-note'); if (n) n.innerHTML = welcomeNote();
-}
-async function welcomeLive() {
-  try {
-    const [f, c] = await Promise.all([getJSON('https://open.er-api.com/v6/latest/USD', 5000),
-      getJSON('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd', 5000).catch(() => null)]);
-    Object.assign(WR, { usdcop: f.rates.COP, eurusd: 1 / f.rates.EUR, btc: c?.bitcoin?.usd ?? null, live: true });
-  } catch (e) { }
-  refreshWelcome();
 }
 function enterApp() {
   const el = $('#welcome'); if (!WELCOME) return;
@@ -1076,7 +1160,7 @@ const ACTS = {
   'new-cat': () => catForm(), 'edit-cat': id => catForm(S.categories[id]),
   'del-cat': id => { closeSheet(); safe(() => del('categories', id), 'Categoría eliminada'); },
   'set-base': (_, el) => safe(() => put('settings', 'main', { ...(S.settings.main || {}), base: el.dataset.cur })),
-  'set-theme': (_, el) => setTheme(el.dataset.theme),
+  'set-theme': (_, el) => setTheme(el.dataset.theme, el),
   'load-demo': () => loadDemo(),
   'ask-clear-demo': () => askConfirm('¿Borrar los datos de ejemplo?', 'Se borran solo las cuentas, movimientos, metas, pagos y alertas marcados como ejemplo. Lo que tú registraste se queda.', 'Borrar ejemplo', clearDemo),
   'export': () => exportData(),
@@ -1160,12 +1244,22 @@ function applyTheme() {
   else el.removeAttribute('data-theme');
   const meta = $('meta[name="theme-color"]'); if (meta) meta.content = cssv('--bg');
 }
-function setTheme(m) { try { localStorage.setItem('mp-theme', m); } catch (e) { } applyTheme(); render(); }
+/* Al cambiar de tema, el nuevo se abre en un círculo que crece desde el botón que se tocó. */
+function setTheme(m, from) {
+  try { localStorage.setItem('mp-theme', m); } catch (e) { }
+  const swap = () => { applyTheme(); render(); };
+  if (!document.startViewTransition || matchMedia('(prefers-reduced-motion: reduce)').matches) return swap();
+  const r = from?.getBoundingClientRect(); const x = r ? r.left + r.width / 2 : innerWidth - 40, y = r ? r.top + r.height / 2 : 40;
+  const end = Math.hypot(Math.max(x, innerWidth - x), Math.max(y, innerHeight - y));
+  document.startViewTransition(swap).ready.then(() => document.documentElement.animate(
+    { clipPath: [`circle(0px at ${x}px ${y}px)`, `circle(${end}px at ${x}px ${y}px)`] },
+    { duration: 650, easing: 'cubic-bezier(.22, 1, .36, 1)', pseudoElement: '::view-transition-new(root)' })).catch(() => { });
+}
 function renderThemeBtn() {
   const m = themeMode(), name = m === 'auto' ? 'automático' : m === 'dark' ? 'oscuro' : 'claro'; const b = $('#theme-btn');
   b.innerHTML = ico(m === 'auto' ? 'auto' : m === 'dark' ? 'moon' : 'sun'); b.title = `Tema ${name} (tocar para cambiar)`; b.setAttribute('aria-label', `Tema ${name}. Cambiar tema`);
 }
-$('#theme-btn').addEventListener('click', () => setTheme({ auto: 'light', light: 'dark', dark: 'auto' }[themeMode()]));
+$('#theme-btn').addEventListener('click', e => setTheme({ auto: 'light', light: 'dark', dark: 'auto' }[themeMode()], e.currentTarget));
 matchMedia('(prefers-color-scheme: dark)').addEventListener?.('change', () => sched());
 
 /* ---------- Respaldo ---------- */
@@ -1301,7 +1395,7 @@ async function loadSeedMarket() {
 /* ---------- Arranque ---------- */
 async function boot() {
   applyTheme();
-  renderWelcome(); welcomeLive();
+  renderWelcome();
   try { const h = location.hash.slice(1); if (VIEW_FN[h]) UI.view = h; } catch (e) { }
   render();
   try { await Store.init(); } catch (e) { Store.mode = 'local'; Store.configError = 'No se pudo conectar con Supabase: ' + e.message; }
@@ -1318,7 +1412,7 @@ async function loadData() {
     return toast(e.code === 'no_table' ? 'Falta crear la tabla en Supabase: corre el archivo supabase/schema.sql.' : 'No se pudieron cargar tus datos. Revisa tu internet y recarga.');
   }
   for (const c of COLS) { S[c] = {}; for (const [id, doc] of Object.entries(saved[c] || {})) S[c][id] = { ...doc, id }; }
-  await loadSeedMarket(); refreshWelcome();
+  await loadSeedMarket();
   initDone = true;
   if (Store.mode === 'cloud' && !S.settings.main) { mode = 'migrate'; render(); }
   else { mode = 'ready'; await firstRun(); render(); }

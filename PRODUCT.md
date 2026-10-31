@@ -20,9 +20,9 @@ Todo se escribe a mano: la app nunca pide ni guarda claves de bancos. Maneja pes
 
 ## Operating Context
 
-- Pantallas: Inicio, Cuentas, Movimientos, Inversiones, Mercado, Ahorro, Pagos, Ajustes; en móvil barra inferior + "Más"; en escritorio barra lateral.
-- Al abrir la app aparece siempre una pantalla de bienvenida breve (recibir con calma: nombre, una frase, botón para entrar); después login o directo a la app si hay sesión.
-- Inicio solo muestra el saldo, tres botones (gasto, ingreso, transferencia) y las cuentas (pedido del dueño: sin gráficos ni resúmenes).
+- Pantallas: Inicio, Movimientos y Cuentas en la barra principal; Análisis, Inversiones, Mercado, Ahorro, Pagos y Ajustes en la barra lateral (escritorio) o en "Más" (móvil).
+- Al abrir la app aparece siempre una pantalla de bienvenida breve (logo, una frase, botón para entrar; sin cotizaciones); después login o directo a la app si hay sesión.
+- Inicio solo muestra el saldo, tres botones (ingreso, gasto, transferencia) y las cuentas (pedido del dueño). Los gráficos y resúmenes están en Análisis.
 - Subgrupos: dinero apartado dentro de una cuenta (ej. "Bicicleta" en Bancolombia); los movimientos pueden entrar o salir de un subgrupo.
 - Inversiones y Mercado incluyen futuros del S&P 500 y Nasdaq 100 (precio de TradingView, historial aproximado de CoinGecko). No hay tasas a mano.
 - Las categorías se administran desde Movimientos.
