@@ -197,11 +197,6 @@ main > .card-head, main > h1 { margin-block: 8px 2px }
 .tips li { display: flex; gap: 12px; align-items: baseline; font-size: 14px }
 .tips .dot { transform: translateY(-1px) }
 .dot.pos { color: var(--pos) } .dot.neg { color: var(--neg) }
-/* Administración: detalle de una persona, debajo de su fila */
-.adm-detail { display: grid; gap: 16px; margin: 4px 0 14px 58px; padding: 14px 16px; border-radius: var(--r-lg); background: var(--surface-2) }
-.adm-detail .label { display: block; margin-bottom: 4px }
-.adm-detail .row.click:hover, .adm-detail .row:hover { background: none }
-@media (max-width: 560px) { .adm-detail { margin-left: 0 } }
 .notices { display: grid; gap: 10px }
 .notices:empty { display: none }
 .notice { display: flex; gap: 12px; align-items: center; padding: 14px 16px; background: var(--surface); border-radius: var(--r-lg); font-size: 14px; color: var(--ink) }

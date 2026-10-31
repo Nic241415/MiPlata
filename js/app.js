@@ -141,11 +141,10 @@ function pairOptions() { const o = ['USD/COP', 'EUR/COP', 'EUR/USD', ...Object.k
 /* ---------- Cálculos ---------- */
 const accList = (all = true) => Object.values(S.accounts).filter(a => all || !a.archived).sort((a, b) => (a.order ?? 0) - (b.order ?? 0) || a.name.localeCompare(b.name));
 const catName = id => S.categories[id]?.name || 'Sin categoría';
-/* Saldo de cada cuenta. Por defecto con tus datos; el panel de Administración le pasa los de otra persona. */
-function balances(upto, accounts = S.accounts, txs = S.txs) {
+function balances(upto) {
   const b = {};
-  for (const a of Object.values(accounts)) b[a.id] = (!upto || (a.since || '0000') <= upto) ? (+a.initial || 0) : 0;
-  for (const t of Object.values(txs)) {
+  for (const a of Object.values(S.accounts)) b[a.id] = (!upto || (a.since || '0000') <= upto) ? (+a.initial || 0) : 0;
+  for (const t of Object.values(S.txs)) {
     if (upto && t.date > upto) continue;
     if (t.type === 'income') { if (t.accountId in b) b[t.accountId] += t.amount; }
     else if (t.type === 'expense') { if (t.accountId in b) b[t.accountId] -= t.amount; }
@@ -327,7 +326,6 @@ const P = {
   ajustes: 'M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0M16 4v4M10 10v4M18 16v4',
   mas: 'M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z',
   analisis: 'M21 12.5A9 9 0 1 1 11.5 3v9.5zM15 2.6A9 9 0 0 1 21.4 9H15z',
-  admin: 'M12 3l8 3v6c0 5-3.4 8.2-8 9-4.6-.8-8-4-8-9V6zM9 12l2 2 4-4',
   bank: 'M3 10l9-6 9 6M5 10v8M9.5 10v8M14.5 10v8M19 10v8M3 20h18',
   wallet: 'M3 7h18v12H3zM3 7l3-3h12l3 3M16 13h2',
   cash: 'M2 7h20v10H2zM12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM5 10v.01M19 14v.01',
@@ -357,15 +355,13 @@ const MAIN_VIEWS = [['inicio', 'Inicio'], ['movimientos', 'Movimientos'], ['cuen
 const MORE_VIEWS = [['analisis', 'Análisis', 'Patrimonio, gastos y lo que te conviene saber'], ['inversiones', 'Inversiones', 'Cripto y futuros (S&amp;P 500, Nasdaq)'], ['mercado', 'Mercado', 'Dólar, euro, futuros y cripto'],
   ['pagos', 'Pagos', 'Suscripciones, arriendo, cuotas'], ['ajustes', 'Ajustes', 'Moneda, tema, respaldo']];
 const TABS = [...MAIN_VIEWS, ['mas', 'Más']];
-/* "Administración" solo aparece para quien Supabase reconoce como administrador. */
-const moreViews = () => Admin.is ? [...MORE_VIEWS, ['admin', 'Administración', 'Personas registradas y sus datos']] : MORE_VIEWS;
 function renderNav() {
-  const cur = UI.view; const MV = moreViews(); const inMore = cur === 'mas' || MV.some(v => v[0] === cur);
+  const cur = UI.view; const inMore = cur === 'mas' || MORE_VIEWS.some(v => v[0] === cur);
   const on = k => cur === k ? 'aria-current="page"' : '';
   $('#rail').innerHTML = MAIN_VIEWS.map(([k, l]) => `<button data-go="${k}" ${on(k)}>${l}</button>`).join('');
   let side = $('#side');
   if (!side) { side = document.createElement('aside'); side.id = 'side'; side.className = 'side'; side.setAttribute('aria-label', 'Más secciones'); $('#main').before(side); } // index.html viejo en caché
-  side.innerHTML = MV.map(([k, l]) => `<button data-go="${k}" ${on(k)}>${ico(k)}${l}</button>`).join('');
+  side.innerHTML = MORE_VIEWS.map(([k, l]) => `<button data-go="${k}" ${on(k)}>${ico(k)}${l}</button>`).join('');
   $('#tabbar').innerHTML = TABS.map(([k, l]) => `<button data-go="${k}" ${(cur === k || (k === 'mas' && inMore)) ? 'aria-current="page"' : ''}>${ico(k)}<span>${l}</span></button>`).join('');
   $('#base-sel').value = baseCur();
 }
@@ -660,31 +656,19 @@ function vAjustes() {
   <section class="card"><h2>Reiniciar cuenta</h2><p class="small muted" style="margin-top:0">Borra todo: cuentas, movimientos, inversiones, metas, pagos, alertas, categorías y ajustes${Store.mode === 'cloud' ? ', también en la nube' : ''}. No se puede deshacer. Si quieres guardar algo, exporta un respaldo antes.</p>
     <button class="btn danger" data-act="ask-reset">Reiniciar y borrar todo</button></section>`;
 }
-/* Inicio de sesión con nombre de usuario: Supabase pide un correo, así que el usuario se guarda como
- * "usuario@mp.local", una dirección que no existe y a la que nunca se envía nada (por eso en Supabase
- * hay que apagar "Confirm email"). Las cuentas viejas creadas con correo siguen entrando con su correo. */
-const USER_DOMAIN = 'mp.local';
-function authEmail(v) {
-  const s = String(v || '').trim().toLowerCase();
-  if (s.includes('@')) return s;
-  if (!/^[a-z0-9._-]{3,30}$/.test(s)) throw new Error('El usuario debe tener de 3 a 30 letras o números, sin espacios ni tildes (puedes usar . _ -).');
-  return `${s}@${USER_DOMAIN}`;
-}
-const userLabel = email => String(email || '').endsWith('@' + USER_DOMAIN) ? email.slice(0, -USER_DOMAIN.length - 1) : (email || '');
 function storageCard() {
-  if (Store.mode === 'cloud') return `<section class="card"><h2>Tu cuenta</h2><p class="small muted" style="margin-top:0">Tus datos se guardan en la nube (Supabase) con el usuario <b>${esc(userLabel(Store.user?.email))}</b>. Entra con él desde el celular o el computador para verlos. Solo tú y el administrador de MP pueden verlos; nadie puede cambiarlos excepto tú. La app nunca pide claves de tus bancos: todo se escribe a mano.</p>
+  if (Store.mode === 'cloud') return `<section class="card"><h2>Tu cuenta</h2><p class="small muted" style="margin-top:0">Tus datos se guardan en la nube (Supabase) con la cuenta <b>${esc(Store.user?.email || '')}</b>. Entra con ese correo desde el celular o el computador para verlos. Solo tú puedes leerlos. La app nunca pide claves de tus bancos: todo se escribe a mano.</p>
     <div class="btns"><button class="btn" data-act="reload-cloud">Actualizar datos</button><button class="btn danger" data-act="logout">Cerrar sesión</button></div></section>`;
   return `<section class="card"><h2>Dónde se guarda todo</h2>${Store.configError ? `<div class="notice warn" style="margin-bottom:10px"><span class="dot"></span><div class="grow">${esc(Store.configError)}</div></div>` : ''}<p class="small muted" style="margin:0">Tus datos se guardan solo en este navegador, en este computador. Si borras los datos del navegador, se pierden: exporta un respaldo de vez en cuando. Para guardarlos en la nube, llena el archivo js/config.js con los datos de Supabase (mira el README). La app nunca pide claves de tus bancos: todo se escribe a mano.</p></section>`;
 }
 function vLogin() {
   return `<div class="gate" data-gate="login"><span class="logo" aria-hidden="true">MP</span><section class="card"><h1>Inicia sesión</h1>
-    <p class="muted small">Entra con tu usuario y contraseña, desde el celular o el computador. No necesitas correo.</p>
+    <p class="muted small">Tus datos se guardan en la nube con tu cuenta. Entra con el mismo correo desde el celular o el computador.</p>
     <form data-form="login" class="fgrid" novalidate>
-      ${fld('Usuario', '<input id="login-user" name="user" autocomplete="username" autocapitalize="none" spellcheck="false" maxlength="80" required>', 'Si creaste tu cuenta con correo, escribe tu correo.')}
+      ${fld('Correo', '<input id="login-email" name="email" type="email" autocomplete="email" required>')}
       ${fld('Contraseña', '<input id="login-pass" name="password" type="password" autocomplete="current-password" minlength="6" required>', 'Mínimo 6 caracteres. Usa una contraseña nueva, no la de tu banco.')}
       <div class="btns"><button class="btn primary" type="submit">Entrar</button><button class="btn" type="button" data-act="signup">Crear cuenta</button></div>
       <p class="small" id="login-msg" role="status" style="margin:0"></p>
-      <p class="small muted" style="margin:0">Tus datos solo los ves tú y el administrador de MP, que puede consultarlos para dar soporte. Nadie más puede verlos ni cambiarlos.</p>
     </form></section></div>`;
 }
 function vMigrate() {
@@ -699,7 +683,7 @@ function vMigrate() {
     </div></section></div>`;
 }
 function vMas() {
-  return `<h1>Más</h1><div class="morelist">${moreViews().map(([k, t, s]) =>`<button data-go="${k}"><span class="avatar" style="color:var(--accent-text)">${ico(k)}</span><span><b>${t}</b><span>${s}</span></span></button>`).join('')}</div>`;
+  return `<h1>Más</h1><div class="morelist">${MORE_VIEWS.map(([k, t, s]) =>`<button data-go="${k}"><span class="avatar" style="color:var(--accent-text)">${ico(k)}</span><span><b>${t}</b><span>${s}</span></span></button>`).join('')}</div>`;
 }
 /* ---------- Análisis ----------
  * Todo lo que antes estaba en Inicio (evolución, resumen del mes, gráficos) y más: tendencias de 6 meses,
@@ -765,63 +749,7 @@ function vAnalisis() {
   </div>
   <p class="small muted center">${esc(rateLine())}</p>`;
 }
-/* ---------- Administración ----------
- * Solo lectura: lista de personas registradas con sus cuentas, movimientos, metas e inversiones.
- * Los datos llegan de js/admin.js; Supabase solo los entrega si la persona está en la tabla admins. */
-const ADM = { list: null, loading: false, error: '', open: null, q: '' };
-async function admLoad() {
-  if (ADM.loading) return; ADM.loading = true; ADM.error = ''; render();
-  try { ADM.list = await Admin.load(); } catch (e) { ADM.error = e.message; }
-  ADM.loading = false; render();
-}
-function admSummary(u) {
-  const acc = u.data.accounts || {}, txs = u.data.txs || {}; const b = balances(null, acc, txs);
-  let nw = 0; for (const a of Object.values(acc)) nw += conv(b[a.id], a.currency, 'COP');
-  const last = Object.values(txs).reduce((m, t) => t.date > m ? t.date : m, '');
-  return { b, nw, nAcc: Object.keys(acc).length, nTx: Object.keys(txs).length, last };
-}
-const fdt = s => s ? fdate(s.slice(0, 10)) : 'nunca';
-function admDetail(u, sm) {
-  const acc = u.data.accounts || {}; const cats = u.data.categories || {};
-  const txs = Object.values(u.data.txs || {}).sort(byDateDesc).slice(0, 12);
-  const goals = Object.values(u.data.goals || {}); const trades = Object.values(u.data.trades || {});
-  const accRows = Object.values(acc).map(a => `<div class="row"><span class="avatar tint" style="--c:${esc(accColor(a.color))}">${ico(a.icon || a.type)}</span><div class="main"><div class="t">${esc(a.name)}</div><div class="s">${ACC_TYPES[a.type] || ''}${a.archived ? ' · archivada' : ''}${subList(a).length ? ` · ${subList(a).length} subgrupos` : ''}</div></div><div class="r"><div class="amt ${sm.b[a.id] < 0 ? 'neg' : ''}">${fmt(sm.b[a.id], a.currency)}</div></div></div>`).join('');
-  const txRows = txs.map(t => { const a = acc[t.accountId]; const tr = t.type === 'transfer';
-    const title = t.note || (tr ? 'Transferencia' : cats[t.categoryId]?.name || 'Sin categoría');
-    const sub = `${fdate(t.date)} · ${tr ? `${esc(a?.name || '¿?')} → ${esc(acc[t.toAccountId]?.name || '¿?')}` : `${esc(cats[t.categoryId]?.name || 'Sin categoría')} · ${esc(a?.name || '¿?')}`}`;
-    return `<div class="row"><span class="avatar ${t.type}">${ico(tr ? 'tr' : t.type === 'income' ? 'in' : 'out')}</span><div class="main"><div class="t">${esc(title)}</div><div class="s">${sub}</div></div><div class="r"><div class="amt ${tr ? '' : t.type === 'income' ? 'pos' : 'neg'}">${fmt(t.type === 'expense' ? -t.amount : t.amount, a?.currency || 'COP', { sign: !tr })}</div></div></div>`; }).join('');
-  return `<div class="adm-detail">
-    <div><div class="label">Cuentas</div>${accRows ? `<div class="rows">${accRows}</div>` : '<p class="small muted">Sin cuentas.</p>'}</div>
-    <div><div class="label">Últimos movimientos</div>${txRows ? `<div class="rows">${txRows}</div>` : '<p class="small muted">Sin movimientos.</p>'}</div>
-    ${goals.length ? `<div><div class="label">Metas</div><div class="rows">${goals.map(g => `<div class="row"><div class="main"><div class="t">${esc(g.name)}</div><div class="s">Para el ${fdate(g.deadline)}</div></div><div class="r"><div class="amt">${fmt(g.target, g.currency)}</div></div></div>`).join('')}</div></div>` : ''}
-    ${trades.length ? `<p class="small muted">${trades.length} operaciones de inversión registradas.</p>` : ''}
-  </div>`;
-}
-function vAdmin() {
-  if (!Admin.is) return `<h1>Administración</h1><div class="card empty"><b>No tienes acceso</b>Esta sección es solo para administradores de MP.</div>`;
-  if (!ADM.list && !ADM.loading && !ADM.error) setTimeout(admLoad);
-  const head = `<div class="card-head"><h1>Administración</h1><button class="btn" data-act="adm-reload" ${ADM.loading ? 'disabled' : ''}>${ico('refresh')}${ADM.loading ? 'Cargando…' : 'Actualizar'}</button></div>
-    <p class="small muted">Solo puedes ver: no puedes cambiar ni borrar los datos de otras personas. Los totales están en COP.</p>`;
-  if (ADM.error) return head + `<div class="card empty"><b>No se pudieron cargar los datos</b>${esc(ADM.error)}<br>Revisa que corriste el archivo supabase/schema.sql actualizado.</div>`;
-  if (!ADM.list) return head + `<div class="card empty"><b>Cargando…</b>Trayendo los datos de todas las personas.</div>`;
-  const rows = ADM.list.map(u => ({ u, sm: admSummary(u), name: userLabel(u.email) }));
-  const weekAgo = addDays(today(), -7);
-  const q = ADM.q.trim().toLowerCase(); const shown = rows.filter(r => !q || r.name.toLowerCase().includes(q));
-  const kpi = (label, value) => `<div class="kpi"><span class="label">${label}</span><b>${value}</b></div>`;
-  return head + `<div class="kpis">
-    ${kpi('Personas registradas', rows.length)}
-    ${kpi('Entraron esta semana', rows.filter(r => (r.u.last_sign_in_at || '') >= weekAgo).length)}
-    ${kpi('Movimientos en total', num(rows.reduce((s, r) => s + r.sm.nTx, 0), 0))}
-    ${kpi('Dinero registrado', fmt(rows.reduce((s, r) => s + r.sm.nw, 0), 'COP'))}
-  </div>
-  <label class="search">${ico('search')}<input id="adm-q" type="search" placeholder="Buscar por usuario" aria-label="Buscar persona" value="${esc(ADM.q)}"></label>
-  <section class="card list">${shown.length ? `<div class="rows">${shown.map(({ u, sm, name }) => `
-    <div class="row click" data-act="adm-open" data-id="${u.user_id}" aria-expanded="${ADM.open === u.user_id}"><span class="avatar">${esc(name.slice(0, 2).toUpperCase())}</span>
-      <div class="main"><div class="t">${esc(name)}${u.user_id === Store.user?.id ? ' <span class="pill-demo">tú</span>' : ''}</div><div class="s">Desde ${fdt(u.created_at)} · último ingreso ${fdt(u.last_sign_in_at)} · ${sm.nAcc} cuentas · ${sm.nTx} movimientos</div></div>
-      <div class="r"><div class="amt ${sm.nw < 0 ? 'neg' : ''}">${fmt(sm.nw, 'COP')}</div><div class="s">${sm.last ? 'Último mov. ' + fdate(sm.last) : 'Sin movimientos'}</div></div></div>
-    ${ADM.open === u.user_id ? admDetail(u, sm) : ''}`).join('')}</div>` : '<div class="empty"><b>Nadie coincide</b>Prueba con otro nombre.</div>'}</section>`;
-}
-const VIEW_FN = { admin: vAdmin, inicio: vInicio, cuentas: vCuentas, movimientos: vMovimientos, analisis: vAnalisis, inversiones: vInversiones, mercado: vMercado, ahorro: vAhorro, pagos: vPagos, ajustes: vAjustes, mas: vMas };
+const VIEW_FN = { inicio: vInicio, cuentas: vCuentas, movimientos: vMovimientos, analisis: vAnalisis, inversiones: vInversiones, mercado: vMercado, ahorro: vAhorro, pagos: vPagos, ajustes: vAjustes, mas: vMas };
 
 /* ---------- Gráficos ---------- */
 const CH = [];
@@ -1106,7 +1034,7 @@ const now = () => new Date().toISOString();
 const FORMS = {
   async login(fd) {
     const msg = $('#login-msg'); msg.textContent = 'Entrando…';
-    try { await Store.signIn(authEmail(fd.get('user')), fd.get('password')); await loadData(); }
+    try { await Store.signIn(fd.get('email').trim(), fd.get('password')); await loadData(); }
     catch (e) { msg.textContent = e.message; }
   },
   async acc(fd) {
@@ -1252,19 +1180,17 @@ const ACTS = {
     }, 'Listo: tu cuenta quedó en blanco');
   },
   'signup': async (_, el) => {
-    const f = el.closest('form'); const pw = f.password.value; const msg = $('#login-msg');
-    let email; try { email = authEmail(f.user.value); } catch (e) { msg.textContent = e.message; return; }
-    if (pw.length < 6) { msg.textContent = 'La contraseña debe tener al menos 6 caracteres.'; return; }
+    const f = el.closest('form'); const email = f.email.value.trim(), pw = f.password.value; const msg = $('#login-msg');
+    if (!email || pw.length < 6) { msg.textContent = 'Escribe tu correo y una contraseña de al menos 6 caracteres.'; return; }
     msg.textContent = 'Creando tu cuenta…';
     try {
       const inNow = await Store.signUp(email, pw);
       if (inNow) await loadData();
-      else if (email.endsWith('@' + USER_DOMAIN)) msg.innerHTML = '<b>Tu usuario quedó creado, pero aún no puede entrar:</b> Supabase está pidiendo confirmar el correo. Quien administra MP debe apagar "Confirm email" en Supabase (mira el README).';
       else msg.innerHTML = '<b>Revisa tu correo.</b> Te enviamos un enlace para confirmar la cuenta. Ábrelo y luego vuelve aquí y toca "Entrar".';
     } catch (e) { msg.textContent = e.message; }
   },
-  'logout': () => askConfirm('¿Cerrar sesión?', 'Tus datos siguen guardados en la nube. Para verlos, vuelve a entrar con tu usuario.', 'Cerrar sesión', async () => {
-    await Store.signOut(); Admin.is = false; ADM.list = null; for (const c of COLS) S[c] = {}; mode = 'login'; UI.view = 'inicio'; render();
+  'logout': () => askConfirm('¿Cerrar sesión?', 'Tus datos siguen guardados en la nube. Para verlos, vuelve a entrar con tu correo.', 'Cerrar sesión', async () => {
+    await Store.signOut(); for (const c of COLS) S[c] = {}; mode = 'login'; UI.view = 'inicio'; render();
   }),
   'reload-cloud': () => loadData().then(() => toast('Datos actualizados')),
   'migrate-local': async () => {
@@ -1280,8 +1206,6 @@ const ACTS = {
   'toggle-filters': () => { UI.showFilters = !UI.showFilters; render(); if (UI.showFilters) $('#f-from')?.focus(); },
   'more-tx': () => { UI.txLimit += TX_MORE; render(); },
   'enter': () => enterApp(),
-  'adm-reload': () => { ADM.list = null; admLoad(); },
-  'adm-open': id => { ADM.open = ADM.open === id ? null : id; render(); },
   'toggle-side': () => { const o = document.body.classList.toggle('side-open'); $('#side-btn')?.setAttribute('aria-expanded', o); },
   'close-side': () => { document.body.classList.remove('side-open'); $('#side-btn')?.setAttribute('aria-expanded', 'false'); },
   'close-sheet': () => closeSheet(), 'confirm-yes': () => { const f = CONFIRM; CONFIRM = null; closeSheet(); f && f(); },
@@ -1296,7 +1220,6 @@ document.addEventListener('submit', e => { e.preventDefault(); const f = e.targe
 document.addEventListener('input', e => {
   const t = e.target;
   if (t.dataset.filter === 'q') { UI.f.q = t.value; UI.txLimit = TX_FIRST; sched(); }
-  if (t.id === 'adm-q') { ADM.q = t.value; sched(); }
   if (t.id === 'reset-text') $('#reset-go').disabled = t.value.trim().toUpperCase() !== RESET_TEXT;
   if (t.id === 'tx-rate') syncFx(false, 'rate'); if (t.id === 'tx-toamount') syncFx(false, 'toamount'); if (t.id === 'tx-amount') syncFx(false, 'amount');
 });
@@ -1492,7 +1415,6 @@ async function loadData() {
   }
   for (const c of COLS) { S[c] = {}; for (const [id, doc] of Object.entries(saved[c] || {})) S[c][id] = { ...doc, id }; }
   await loadSeedMarket();
-  await Admin.check().catch(() => { });
   initDone = true;
   if (Store.mode === 'cloud' && !S.settings.main) { mode = 'migrate'; render(); }
   else { mode = 'ready'; await firstRun(); render(); }

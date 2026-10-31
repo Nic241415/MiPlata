@@ -2,7 +2,7 @@
  * storage.js — Dónde se guardan tus datos.
  *
  * Dos modos:
- *  - "cloud": en Supabase, con tu usuario (o correo) y contraseña. Los ves desde cualquier aparato.
+ *  - "cloud": en Supabase, con tu correo y contraseña. Los ves desde cualquier aparato.
  *    Se activa al llenar js/config.js.
  *  - "local": en este navegador (localStorage). Solo este computador y este navegador.
  *
@@ -70,8 +70,7 @@ const Store = {
     }
     const out = {};
     for (let from = 0; ; from += 1000) { // Supabase entrega máximo 1000 filas por consulta
-      // Filtra por la persona: un administrador puede leer filas de otros, pero su app solo carga las suyas.
-      const { data, error } = await this.sb.from('docs').select('col,id,data').eq('user_id', this.user.id).order('col').order('id').range(from, from + 999);
+      const { data, error } = await this.sb.from('docs').select('col,id,data').order('col').order('id').range(from, from + 999);
       if (error) throw dbError(error);
       for (const r of data) (out[r.col] ||= {})[r.id] = r.data;
       if (data.length < 1000) break;
@@ -89,7 +88,7 @@ const Store = {
   /** Borra un documento. */
   async del(col, id) {
     if (this.mode === 'local') { if (this.data?.[col]) delete this.data[col][id]; return this._writeLocal(); }
-    const { error } = await this.sb.from('docs').delete().eq('user_id', this.user.id).eq('col', col).eq('id', id);
+    const { error } = await this.sb.from('docs').delete().eq('col', col).eq('id', id);
     if (error) throw dbError(error);
   },
 
@@ -130,9 +129,9 @@ function isSecretKey(key) {
 function authError(e) {
   const m = (e.message || '').toLowerCase();
   const err = new Error(
-    m.includes('invalid login') ? 'Usuario o contraseña incorrectos.'
+    m.includes('invalid login') ? 'Correo o contraseña incorrectos.'
     : m.includes('not confirmed') ? 'Primero confirma tu correo: abre el enlace que te enviamos.'
-    : m.includes('already registered') ? 'Ese usuario ya existe. Toca "Entrar" o elige otro nombre.'
+    : m.includes('already registered') ? 'Ese correo ya tiene cuenta. Toca "Entrar".'
     : m.includes('password') && m.includes('6') ? 'La contraseña debe tener al menos 6 caracteres.'
     : m.includes('rate limit') ? 'Demasiados intentos. Espera unos minutos.'
     : m.includes('email') && m.includes('invalid') ? 'Ese correo no es válido.'
