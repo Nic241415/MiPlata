@@ -297,6 +297,9 @@ main > .card-head, main > h1 { margin-block: 8px 2px }
 }
 /* Inicio: los mismos botones que en Movimientos */
 .hero-acts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; width: 100%; max-width: 640px; margin-top: 28px }
+.hero-acts.two { grid-template-columns: repeat(2, minmax(0, 1fr)); max-width: 440px }
+.cc-bar { display: grid; gap: 8px; justify-items: center; width: min(100%, 360px) }
+.cc-bar .bar { width: 100% }
 .mv-find { display: grid; gap: 10px }
 .find-acts { display: flex; gap: 8px; flex-wrap: wrap }
 .search { display: flex; align-items: center; gap: 10px; min-height: 52px; padding: 0 8px 0 20px; border-radius: var(--pill); background: var(--surface); color: var(--ink-2);

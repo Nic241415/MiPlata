@@ -62,7 +62,8 @@ function parseNum(str) {
 const inNum = v => (v == null || v === '' || !isFinite(v)) ? '' : String(+(+v).toFixed(8)).replace('.', ',');
 
 /* ---------- Estado ---------- */
-const COLS = ['accounts', 'txs', 'categories', 'trades', 'goals', 'contribs', 'recurring', 'alerts', 'settings', 'market'];
+// cards, cardtx y cardcats son de la sección secreta Tarjeta de crédito: no cuentan en saldos, gastos ni análisis.
+const COLS = ['accounts', 'txs', 'categories', 'trades', 'goals', 'contribs', 'recurring', 'alerts', 'settings', 'market', 'cards', 'cardtx', 'cardcats'];
 const S = {}; COLS.forEach(c => S[c] = {});
 const UI = { view: 'inicio', range: { USDCOP: 30, EURCOP: 30, EURUSD: 30, BTC: 30 }, f: { from: '', to: '', acc: '', cat: '', type: '', q: '', min: '', max: '' }, showFilters: false, showArchived: false, budgetMonth: today().slice(0, 7), txLimit: 15 };
 /* Movimientos: se ven 15 al entrar y "Cargar más" suma 25. */
@@ -330,7 +331,7 @@ const P = {
   wallet: 'M3 7h18v12H3zM3 7l3-3h12l3 3M16 13h2',
   cash: 'M2 7h20v10H2zM12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM5 10v.01M19 14v.01',
   crypto: 'M8 7h6a2.5 2.5 0 0 1 0 5H8zM8 12h7a2.5 2.5 0 0 1 0 5H8zM8 5v14M11 5V3M11 21v-2M14 5V3M14 21v-2',
-  card: 'M2 6h20v12H2zM2 10h20M6 15h4',
+  card: 'M2 6h20v12H2zM2 10h20M6 15h4', tarjeta: 'M2 6h20v12H2zM2 10h20M6 15h4',
   piggy: 'M5 11a7 6 0 0 1 13-2h2v4h-2l-1 3v3h-3v-2h-4v2H7v-3a6 6 0 0 1-2-5zM15 9h.01',
   sun: 'M12 17a5 5 0 1 0 0-10 5 5 0 0 0 0 10zM12 1v2M12 21v2M4.2 4.2l1.4 1.4M18.4 18.4l1.4 1.4M1 12h2M21 12h2M4.2 19.8l1.4-1.4M18.4 5.6l1.4-1.4',
   moon: 'M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z',
@@ -355,13 +356,15 @@ const MAIN_VIEWS = [['inicio', 'Inicio'], ['movimientos', 'Movimientos'], ['cuen
 const MORE_VIEWS = [['analisis', 'Análisis', 'Patrimonio, gastos y lo que te conviene saber'], ['inversiones', 'Inversiones', 'Cripto y futuros (S&amp;P 500, Nasdaq)'], ['mercado', 'Mercado', 'Dólar, euro, futuros y cripto'],
   ['pagos', 'Pagos', 'Suscripciones, arriendo, cuotas'], ['ajustes', 'Ajustes', 'Moneda, tema, respaldo']];
 const TABS = [...MAIN_VIEWS, ['mas', 'Más']];
+/* "Tarjeta de crédito" solo aparece después de tocar 5 veces el logo MP (ver brandTap). */
+const moreViews = () => ccUnlocked() ? [...MORE_VIEWS, ['tarjeta', 'Tarjeta de crédito', 'Cupo, gastos y pagos de tu tarjeta']] : MORE_VIEWS;
 function renderNav() {
-  const cur = UI.view; const inMore = cur === 'mas' || MORE_VIEWS.some(v => v[0] === cur);
+  const cur = UI.view; const MV = moreViews(); const inMore = cur === 'mas' || MV.some(v => v[0] === cur);
   const on = k => cur === k ? 'aria-current="page"' : '';
   $('#rail').innerHTML = MAIN_VIEWS.map(([k, l]) => `<button data-go="${k}" ${on(k)}>${l}</button>`).join('');
   let side = $('#side');
   if (!side) { side = document.createElement('aside'); side.id = 'side'; side.className = 'side'; side.setAttribute('aria-label', 'Más secciones'); $('#main').before(side); } // index.html viejo en caché
-  side.innerHTML = MORE_VIEWS.map(([k, l]) => `<button data-go="${k}" ${on(k)}>${ico(k)}${l}</button>`).join('');
+  side.innerHTML = MV.map(([k, l]) => `<button data-go="${k}" ${on(k)}>${ico(k)}${l}</button>`).join('');
   $('#tabbar').innerHTML = TABS.map(([k, l]) => `<button data-go="${k}" ${(cur === k || (k === 'mas' && inMore)) ? 'aria-current="page"' : ''}>${ico(k)}<span>${l}</span></button>`).join('');
   $('#base-sel').value = baseCur();
 }
@@ -683,7 +686,7 @@ function vMigrate() {
     </div></section></div>`;
 }
 function vMas() {
-  return `<h1>Más</h1><div class="morelist">${MORE_VIEWS.map(([k, t, s]) =>`<button data-go="${k}"><span class="avatar" style="color:var(--accent-text)">${ico(k)}</span><span><b>${t}</b><span>${s}</span></span></button>`).join('')}</div>`;
+  return `<h1>Más</h1><div class="morelist">${moreViews().map(([k, t, s]) =>`<button data-go="${k}"><span class="avatar" style="color:var(--accent-text)">${ico(k)}</span><span><b>${t}</b><span>${s}</span></span></button>`).join('')}</div>`;
 }
 /* ---------- Análisis ----------
  * Todo lo que antes estaba en Inicio (evolución, resumen del mes, gráficos) y más: tendencias de 6 meses,
@@ -749,7 +752,7 @@ function vAnalisis() {
   </div>
   <p class="small muted center">${esc(rateLine())}</p>`;
 }
-const VIEW_FN = { inicio: vInicio, cuentas: vCuentas, movimientos: vMovimientos, analisis: vAnalisis, inversiones: vInversiones, mercado: vMercado, ahorro: vAhorro, pagos: vPagos, ajustes: vAjustes, mas: vMas };
+const VIEW_FN = { tarjeta: vTarjeta, inicio: vInicio, cuentas: vCuentas, movimientos: vMovimientos, analisis: vAnalisis, inversiones: vInversiones, mercado: vMercado, ahorro: vAhorro, pagos: vPagos, ajustes: vAjustes, mas: vMas };
 
 /* ---------- Gráficos ---------- */
 const CH = [];
@@ -832,7 +835,7 @@ function render() {
   const gate = mode === 'login' || mode === 'migrate' || mode === 'loading';
   $('#rail').hidden = $('#tabbar').hidden = gate;
   document.body.classList.toggle('is-gate', mode === 'login' || mode === 'migrate');
-  $('#fab').hidden = gate || ['ajustes', 'mas'].includes(UI.view);
+  $('#fab').hidden = gate || ['ajustes', 'mas', 'tarjeta'].includes(UI.view); // en Tarjeta, el + del resto de la app confundiría
   if (mode === 'loading') return;
   if (mode === 'login' || mode === 'migrate') { while (CH.length) CH.pop().destroy(); if (!$('#main [data-gate="' + mode + '"]')) $('#main').innerHTML = mode === 'login' ? vLogin() : vMigrate(); return; }
   const ae = document.activeElement; const fid = ae && ae.id && $('#main').contains(ae) ? ae.id : null; const sel = fid && ae.selectionStart != null ? [ae.selectionStart, ae.selectionEnd] : null;
@@ -1212,6 +1215,7 @@ const ACTS = {
 };
 document.addEventListener('click', e => {
   if (e.target.matches('.scrim')) return closeSheet();
+  if (e.target.closest('.brand')) brandTap();
   const g = e.target.closest('[data-go]'); if (g) return go(g.dataset.go);
   const a = e.target.closest('[data-act]'); if (!a || a.dataset.act === 'close-sheet-bg') return;
   const fn = ACTS[a.dataset.act]; if (fn) { e.preventDefault(); fn(a.dataset.id, a); }
@@ -1220,17 +1224,161 @@ document.addEventListener('submit', e => { e.preventDefault(); const f = e.targe
 document.addEventListener('input', e => {
   const t = e.target;
   if (t.dataset.filter === 'q') { UI.f.q = t.value; UI.txLimit = TX_FIRST; sched(); }
+  if (t.dataset.cfilter === 'q') { UI.cf.q = t.value; UI.ccLimit = TX_FIRST; sched(); }
   if (t.id === 'reset-text') $('#reset-go').disabled = t.value.trim().toUpperCase() !== RESET_TEXT;
   if (t.id === 'tx-rate') syncFx(false, 'rate'); if (t.id === 'tx-toamount') syncFx(false, 'toamount'); if (t.id === 'tx-amount') syncFx(false, 'amount');
 });
 document.addEventListener('change', e => {
   const t = e.target;
   if (t.dataset.filter && t.dataset.filter !== 'q') { UI.f[t.dataset.filter] = t.value; UI.txLimit = TX_FIRST; render(); }
+  if (t.dataset.cfilter && t.dataset.cfilter !== 'q') { UI.cf[t.dataset.cfilter] = t.value; UI.ccLimit = TX_FIRST; render(); }
   if (t.id === 'tx-from' || t.id === 'tx-to') { syncFx(false, 'acc'); const [n, id] = t.id === 'tx-from' ? ['subId', 'tx-sub'] : ['toSubId', 'tx-tosub']; $(`#${id}-wrap`).outerHTML = subField(n, id, t.value); }
   if (t.id === 'base-sel') safe(() => put('settings', 'main', { ...(S.settings.main || {}), base: t.value }));
   if (t.id === 'import-file' && t.files[0]) importData(t.files[0]);
 });
 document.addEventListener('keydown', e => { if (e.key === 'Escape') { if ($('#sheet-root').innerHTML) closeSheet(); else ACTS['close-side'](); } });
+
+/* ---------- Tarjeta de crédito (sección secreta) ----------
+ * Se desbloquea tocando 5 veces el logo MP. Es un registro aparte: sus tarjetas (cards), gastos y pagos
+ * (cardtx) y categorías (cardcats) NO cuentan en el patrimonio, en Movimientos, en Ahorro ni en Análisis.
+ * Cupo disponible = cupo − gastos + pagos. "Reiniciar cupo" registra el pago de la tarjeta. */
+const DEFAULT_CC_CATS = [['comida', 'Comida'], ['transporte', 'Transporte'], ['compras', 'Compras'], ['servicios', 'Servicios'], ['ocio', 'Ocio'], ['salud', 'Salud'], ['suscripciones', 'Suscripciones'], ['viajes', 'Viajes'], ['otros', 'Otros']];
+Object.assign(UI, { ccCard: '', cf: { from: '', to: '', cat: '', type: '', q: '', min: '', max: '' }, ccFilters: false, ccLimit: TX_FIRST });
+function ccUnlocked() { return !!S.settings.secret?.cc; }
+let brandN = 0, brandT;
+function brandTap() { clearTimeout(brandT); brandT = setTimeout(() => { brandN = 0; }, 1500); if (++brandN >= 5) { brandN = 0; unlockCC(); } }
+async function unlockCC() {
+  if (mode !== 'ready' || ccUnlocked()) return;
+  await safe(async () => {
+    await put('settings', 'secret', { ...(S.settings.secret || {}), cc: true });
+    if (!Object.keys(S.cardcats).length) await writeMany(DEFAULT_CC_CATS.map(([id, name]) => ['put', 'cardcats', 'cc-' + id, { name }]));
+  });
+  toast('Desbloqueaste la sección Tarjeta de crédito'); go('tarjeta');
+}
+const ccCards = () => Object.values(S.cards).sort((a, b) => a.name.localeCompare(b.name));
+const ccCur = () => S.cards[UI.ccCard] || ccCards()[0];
+const ccCatName = id => S.cardcats[id]?.name || 'Sin categoría';
+const ccCatOptions = (sel, withAll) => (withAll ? '<option value="">Todas</option>' : '') + Object.values(S.cardcats).sort((a, b) => a.name.localeCompare(b.name)).map(c => `<option value="${c.id}" ${sel === c.id ? 'selected' : ''}>${esc(c.name)}</option>`).join('');
+function ccUsed(c) { let u = 0; for (const t of Object.values(S.cardtx)) if (t.cardId === c.id) u += t.type === 'payment' ? -t.amount : t.amount; return u; }
+const ccActive = () => ['from', 'to', 'cat', 'type'].filter(k => UI.cf[k]).length + (UI.cf.min || UI.cf.max ? 1 : 0);
+function ccFiltered(c) {
+  const f = UI.cf, q = f.q.trim().toLowerCase(), min = parseNum(f.min), max = parseNum(f.max);
+  return Object.values(S.cardtx).filter(t => t.cardId === c.id && (!f.from || t.date >= f.from) && (!f.to || t.date <= f.to) && (!f.cat || t.categoryId === f.cat) && (!f.type || t.type === f.type)
+    && (!q || (t.note || '').toLowerCase().includes(q) || ccCatName(t.categoryId).toLowerCase().includes(q)) && (isNaN(min) || t.amount >= min) && (isNaN(max) || t.amount <= max)).sort(byDateDesc);
+}
+function ccRow(t, cur) {
+  const pay = t.type === 'payment'; const title = t.note || (pay ? 'Pago de la tarjeta' : ccCatName(t.categoryId));
+  return `<div class="row click" data-act="cc-edit-tx" data-id="${t.id}"><span class="avatar ${pay ? 'income' : 'expense'}">${ico(pay ? 'in' : 'out')}</span>
+    <div class="main"><div class="t">${esc(title)}</div><div class="s">${pay ? 'Pago · se libera cupo' : esc(ccCatName(t.categoryId))}</div></div>
+    <div class="r"><div class="amt ${pay ? 'pos' : 'neg'}">${fmt(pay ? t.amount : -t.amount, cur, { sign: true })}</div></div></div>`;
+}
+function vTarjeta() {
+  if (!ccUnlocked()) return `<h1>Tarjeta de crédito</h1><div class="card empty"><b>Sección no disponible</b>Vuelve a Inicio.</div>`;
+  const cards = ccCards(); const c = ccCur();
+  if (!c) return modeNotice() + `<h1>Tarjeta de crédito</h1><div class="card empty"><b>Aún no tienes una tarjeta</b>Crea una con su cupo para llevar el saldo, los gastos y los pagos. Esta sección es aparte: no cuenta en tu patrimonio ni en tus gastos.<div class="btns" style="justify-content:center;margin-top:14px"><button class="btn primary" data-act="cc-new-card">Nueva tarjeta</button></div></div>`;
+  const cur = c.currency || 'COP', used = ccUsed(c), avail = c.limit - used, p = c.limit > 0 ? Math.max(0, Math.min(100, used / c.limit * 100)) : 0;
+  const list = ccFiltered(c), f = UI.cf, nf = ccActive(), open = UI.ccFilters, shown = Math.min(UI.ccLimit, list.length);
+  const byCat = {}; let spent = 0; for (const t of list) if (t.type !== 'payment') { byCat[t.categoryId] = (byCat[t.categoryId] || 0) + t.amount; spent += t.amount; }
+  const cats = Object.entries(byCat).sort((a, b) => b[1] - a[1]);
+  let rows = '', day = ''; for (const t of list.slice(0, UI.ccLimit)) { if (t.date !== day) { day = t.date; rows += `<div class="day">${dayLabel(day)}</div>`; } rows += ccRow(t, cur); }
+  return modeNotice() + `<div class="card-head"><h1>Tarjeta de crédito</h1><div class="btns">
+      ${cards.length > 1 ? `<div class="seg" role="group" aria-label="Tarjeta">${cards.map(x => `<button data-act="cc-pick" data-id="${x.id}" aria-pressed="${x.id === c.id}">${esc(x.name)}</button>`).join('')}</div>` : ''}
+      <button class="btn" data-act="cc-edit-card" data-id="${c.id}">Editar tarjeta</button><button class="btn" data-act="cc-new-card">${ico('plus')}Nueva tarjeta</button></div></div>
+  <section class="hero">
+    <span class="label">Cupo disponible · ${esc(c.name)}</span>
+    <span class="big ${avail < 0 ? 'neg' : ''}">${fmt(avail, cur)}</span>
+    <div class="cc-bar"><div class="bar ${avail < 0 ? 'over' : ''}"><i style="width:${p.toFixed(1)}%"></i></div><span class="small muted">Usado ${fmt(used, cur)} de ${fmt(c.limit, cur)}</span></div>
+    <div class="hero-acts two"><button class="mv-add expense" data-act="cc-new" data-type="expense"><span class="mv-ico">${ico('minus')}</span>Gasto</button>
+      <button class="mv-add income" data-act="cc-new" data-type="payment"><span class="mv-ico">${ico('refresh')}</span>Reiniciar cupo</button></div>
+  </section>
+  <div class="mv-find">
+    <label class="search">${ico('search')}<input id="cf-q" data-cfilter="q" type="search" placeholder="Buscar por nota o categoría" aria-label="Buscar en la tarjeta" value="${esc(f.q)}"></label>
+    <div class="find-acts"><button class="btn filt-btn" data-act="cc-toggle-filters" aria-expanded="${open}" aria-controls="cc-filters">${ico('filter')}Filtros${nf ? `<span class="count">${nf}</span>` : ''}</button>
+      <button class="btn filt-btn" data-act="cc-cats">${ico('tag')}Categorías</button></div>
+    ${open ? `<section class="card filters" id="cc-filters" aria-label="Filtros">
+      <label class="field"><span>Desde</span><input id="cf-from" data-cfilter="from" type="date" value="${f.from}"></label>
+      <label class="field"><span>Hasta</span><input id="cf-to" data-cfilter="to" type="date" value="${f.to}"></label>
+      <label class="field"><span>Categoría</span><select id="cf-cat" data-cfilter="cat">${ccCatOptions(f.cat, true)}</select></label>
+      <label class="field"><span>Tipo</span><select id="cf-type" data-cfilter="type"><option value="">Todos</option><option value="expense" ${f.type === 'expense' ? 'selected' : ''}>Gastos</option><option value="payment" ${f.type === 'payment' ? 'selected' : ''}>Pagos</option></select></label>
+      <div class="field range"><span id="cf-amt-l">Monto (en ${cur})</span><div class="range-in" role="group" aria-labelledby="cf-amt-l">
+        <input id="cf-min" data-cfilter="min" inputmode="decimal" placeholder="Desde" aria-label="Monto desde" value="${esc(f.min)}"><span aria-hidden="true">–</span>
+        <input id="cf-max" data-cfilter="max" inputmode="decimal" placeholder="Hasta" aria-label="Monto hasta" value="${esc(f.max)}"></div></div>
+      <div class="filters-foot"><button class="btn" data-act="cc-clear"${nf || f.q ? '' : ' disabled'}>Limpiar filtros</button></div>
+    </section>` : ''}
+  </div>
+  <section class="card"><div class="card-head"><h2>Gastos por categoría</h2><span class="small muted">${nf || f.q ? 'Con los filtros puestos' : 'Todos los gastos'} · ${fmt(spent, cur)}</span></div>
+    ${cats.length ? `<div class="catbars">${cats.map(([k, v]) => `<div class="catbar"><div class="kv"><span>${esc(ccCatName(k))}</span><b>${fmt(v, cur)} <span class="muted small">${num(v / spent * 100, 0)} %</span></b></div><div class="bar"><i style="width:${(v / cats[0][1] * 100).toFixed(1)}%"></i></div></div>`).join('')}</div>`
+      : '<div class="empty"><b>Sin gastos</b>Registra un gasto con el botón de arriba.</div>'}</section>
+  <section class="card list"><div class="card-head"><h2>Movimientos de la tarjeta</h2></div>
+    ${list.length ? `<div class="rows">${rows}</div><div class="more"><span class="small muted">Viendo ${shown} de ${list.length}</span>${list.length > shown ? '<button class="btn" data-act="cc-more">Cargar más</button>' : ''}</div>`
+      : `<div class="empty"><b>${nf || f.q ? 'No hay movimientos con estos filtros' : 'Aún no hay movimientos'}</b>${nf || f.q ? 'Cambia la búsqueda o los filtros.' : 'Los gastos y pagos de esta tarjeta aparecen aquí.'}</div>`}</section>
+  <p class="small muted">Esta sección es aparte: lo que registres aquí no cambia tu patrimonio, tus cuentas ni tus gastos del resto de la app.</p>`;
+}
+function ccCardForm(c = {}) {
+  const isNew = !c.id;
+  openSheet(isNew ? 'Nueva tarjeta' : 'Editar tarjeta', `<input type="hidden" name="id" value="${c.id || ''}">
+    ${fld('Nombre', `<input name="name" maxlength="40" value="${esc(c.name || '')}" placeholder="Ej: Visa Bancolombia">`)}
+    <div class="fgrid two">${fld('Cupo total', `<input name="limit" inputmode="decimal" value="${inNum(c.limit ?? '')}" placeholder="5.000.000">`, NUM_HINT)}${fld('Divisa', curSelect('currency', c.currency || 'COP', true))}</div>
+    <div class="btns"><button class="btn primary" type="submit">Guardar</button>${isNew ? '' : `<button type="button" class="btn danger" data-act="cc-del-card" data-id="${c.id}">Eliminar</button>`}</div>`, 'cccard');
+}
+function ccTxForm(t = {}, type) {
+  const c = S.cards[t.cardId] || ccCur(); if (!c) { toast('Primero crea una tarjeta'); return ccCardForm(); }
+  const isNew = !t.id; const pay = (t.type || type) === 'payment'; const cards = ccCards(); const used = ccUsed(c);
+  openSheet(pay ? (isNew ? 'Reiniciar cupo' : 'Editar pago') : (isNew ? 'Nuevo gasto con la tarjeta' : 'Editar gasto'), `<input type="hidden" name="id" value="${t.id || ''}"><input type="hidden" name="type" value="${pay ? 'payment' : 'expense'}">
+    ${pay && isNew ? `<p class="small muted" style="margin:0">Registra el pago de la tarjeta. Si pagas todo lo usado (${fmt(used, c.currency || 'COP')}), el cupo vuelve a quedar completo.</p>` : ''}
+    ${cards.length > 1 ? fld('Tarjeta', `<select name="cardId">${cards.map(x => `<option value="${x.id}" ${x.id === c.id ? 'selected' : ''}>${esc(x.name)}</option>`).join('')}</select>`) : `<input type="hidden" name="cardId" value="${c.id}">`}
+    <div class="fgrid two">${fld(pay ? 'Monto pagado' : 'Monto', `<input name="amount" inputmode="decimal" value="${inNum(t.amount ?? (pay ? Math.max(0, used) : ''))}" placeholder="0">`, NUM_HINT)}${fld('Fecha', `<input type="date" name="date" value="${t.date || today()}">`)}</div>
+    ${pay ? '' : fld('Categoría', `<select name="categoryId">${ccCatOptions(t.categoryId || Object.keys(S.cardcats)[0])}<option value="" ${t.id && !t.categoryId ? 'selected' : ''}>Sin categoría</option></select>`)}
+    ${fld('Nota (opcional)', `<input name="note" maxlength="80" value="${esc(t.note || '')}" placeholder="${pay ? 'Ej: Pago de octubre' : 'Ej: Mercado'}">`)}
+    <div class="btns"><button class="btn primary" type="submit">Guardar</button>${isNew ? '' : `<button type="button" class="btn danger" data-act="cc-del-tx" data-id="${t.id}">Eliminar</button>`}</div>`, 'cctx');
+}
+function ccCatsSheet() {
+  const cats = Object.values(S.cardcats).sort((a, b) => a.name.localeCompare(b.name));
+  openSheet('Categorías de la tarjeta', `<div class="btns"><button type="button" class="btn primary" data-act="cc-new-cat">Nueva categoría</button></div>
+    ${cats.length ? `<div class="rows">${cats.map(c => `<div class="row click" data-act="cc-edit-cat" data-id="${c.id}"><div class="main"><div class="t">${esc(c.name)}</div></div></div>`).join('')}</div>` : '<div class="empty"><b>No hay categorías</b>Crea una para clasificar los gastos de la tarjeta.</div>'}`);
+}
+function ccCatForm(c = {}) {
+  const isNew = !c.id;
+  openSheet(isNew ? 'Nueva categoría' : 'Editar categoría', `<input type="hidden" name="id" value="${c.id || ''}">
+    ${fld('Nombre', `<input name="name" maxlength="40" value="${esc(c.name || '')}">`)}
+    <div class="btns"><button class="btn primary" type="submit">Guardar</button>${isNew ? '' : `<button type="button" class="btn danger" data-act="cc-del-cat" data-id="${c.id}">Eliminar</button>`}</div>`, 'cccat');
+}
+Object.assign(FORMS, {
+  async cccard(fd) {
+    const id = fd.get('id') || 'k' + uid(); const name = fd.get('name').trim(); const limit = parseNum(fd.get('limit'));
+    if (!name || !(limit > 0)) return toast('Escribe el nombre y el cupo de la tarjeta');
+    await safe(async () => {
+      await put('cards', id, { ...(S.cards[id] || {}), name, limit, currency: fd.get('currency') });
+      if (!Object.keys(S.cardcats).length) await writeMany(DEFAULT_CC_CATS.map(([k, n]) => ['put', 'cardcats', 'cc-' + k, { name: n }]));
+    }, 'Tarjeta guardada');
+    UI.ccCard = id; closeSheet();
+  },
+  async cctx(fd) {
+    const id = fd.get('id') || uid(); const amount = parseNum(fd.get('amount')); if (!(amount > 0)) return toast('Escribe un monto mayor que cero');
+    const type = fd.get('type'), prev = S.cardtx[id] || {};
+    await safe(() => put('cardtx', id, { ...prev, type, cardId: fd.get('cardId'), amount, date: fd.get('date') || today(), categoryId: type === 'payment' ? '' : (fd.get('categoryId') || ''), note: fd.get('note').trim(), created: prev.created || now() }),
+      type === 'payment' ? 'Pago registrado' : 'Gasto guardado');
+    UI.ccCard = fd.get('cardId'); closeSheet();
+  },
+  async cccat(fd) {
+    const name = fd.get('name').trim(); if (!name) return toast('Escribe un nombre');
+    await safe(() => put('cardcats', fd.get('id') || 'cc-' + uid(), { name }), 'Categoría guardada'); ccCatsSheet();
+  },
+});
+Object.assign(ACTS, {
+  'cc-pick': id => { UI.ccCard = id; UI.ccLimit = TX_FIRST; render(); },
+  'cc-new-card': () => ccCardForm(), 'cc-edit-card': id => ccCardForm(S.cards[id]),
+  'cc-del-card': id => { const n = Object.values(S.cardtx).filter(t => t.cardId === id).length;
+    askConfirm('¿Eliminar tarjeta?', `Se eliminará "${esc(S.cards[id].name)}"${n ? ` y sus ${n} movimientos` : ''}. No se puede deshacer.`, 'Eliminar',
+      () => safe(() => writeMany([...Object.values(S.cardtx).filter(t => t.cardId === id).map(t => ['del', 'cardtx', t.id]), ['del', 'cards', id]]), 'Tarjeta eliminada')); },
+  'cc-new': (_, el) => ccTxForm({}, el.dataset.type), 'cc-edit-tx': id => ccTxForm(S.cardtx[id]),
+  'cc-del-tx': id => askConfirm('¿Eliminar este movimiento?', 'El cupo de la tarjeta se recalcula sin él.', 'Eliminar', () => safe(() => del('cardtx', id), 'Movimiento eliminado')),
+  'cc-cats': () => ccCatsSheet(), 'cc-new-cat': () => ccCatForm(), 'cc-edit-cat': id => ccCatForm(S.cardcats[id]),
+  'cc-del-cat': id => { closeSheet(); safe(() => del('cardcats', id), 'Categoría eliminada'); },
+  'cc-toggle-filters': () => { UI.ccFilters = !UI.ccFilters; render(); if (UI.ccFilters) $('#cf-from')?.focus(); },
+  'cc-clear': () => { UI.cf = { from: '', to: '', cat: '', type: '', q: '', min: '', max: '' }; UI.ccLimit = TX_FIRST; render(); },
+  'cc-more': () => { UI.ccLimit += TX_MORE; render(); },
+});
 
 /* ---------- Tema ---------- */
 /* Ocultar el dinero en Inicio: se recuerda en cada aparato (no se guarda en la nube). */

@@ -26,6 +26,7 @@ Todo se escribe a mano: la app nunca pide ni guarda claves de bancos. Maneja pes
 - Subgrupos: dinero apartado dentro de una cuenta (ej. "Bicicleta" en Bancolombia); los movimientos pueden entrar o salir de un subgrupo.
 - Inversiones y Mercado incluyen futuros del S&P 500 y Nasdaq 100 (precio de TradingView, historial aproximado de CoinGecko). No hay tasas a mano.
 - Las categorías se administran desde Movimientos.
+- Sección secreta "Tarjeta de crédito": aparece al tocar 5 veces el logo MP. Lleva cupo disponible, gastos, pagos ("Reiniciar cupo"), categorías propias, buscador y filtros. Es independiente: no cuenta en patrimonio, Movimientos, Ahorro ni Análisis.
 - Formularios en hojas (sheets) que suben desde abajo en móvil.
 - Datos de ejemplo cargables para conocer la app.
 
